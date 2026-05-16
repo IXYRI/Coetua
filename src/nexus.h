@@ -142,3 +142,46 @@ bool   mtancestor(int tree, uvlong anc, uvlong kid);
 uvlong mtsubtree(int tree, uvlong knob, uvlong *buf, uvlong cap);
 bool   mtdetach(int tree, uvlong kid);
 bool   mtmove(int tree, uvlong kid, uvlong newpar);
+
+/* ═══════════════════════════════════════════════════════
+   Lattice — fixed 2D grid topology descriptors.
+   A lattice owns rectangular shape and one caller-owned uvlong phi per cell.
+
+   Coordinates are mathematical: x grows right, y grows upward, and vlong
+   bounds may be negative.  mklattice() uses inclusive bounds
+   [xmin,xmax] × [ymin,ymax].  Every cell inside those bounds exists from
+   construction; there is no occupancy, add-cell, delete-cell, public cell id,
+   public z-index, or full-grid traversal API.
+
+   Each cell starts with the constructor init phi.  ltbase() returns that init
+   value.  ltclear() resets every cell to it.  ltphis() enumerates only cells
+   whose phi differs from ltbase(), returning ltcell records.  Its order is not
+   a public contract.
+
+   Phi storage is compact and internally ordered by a clipped Morton layout for
+   locality.  This layout is not exposed and callers must use coordinates.
+
+   ltbounds() is a query with optional output pointers: null outputs are
+   silently skipped.  ltorth() returns in-bounds orthogonal neighbor phis in
+   counterclockwise order from east: E, N, W, S.  ltsurr() returns surrounding
+   neighbor phis in counterclockwise order from east: E, NE, N, NW, W, SW, S,
+   SE.  ltorth(), ltsurr(), and ltphis() use the count/cap/null-buffer
+   convention; null buffers are valid only when cap is zero.
+   ═══════════════════════════════════════════════════════ */
+
+typedef struct ltcell {
+	vlong  x;
+	vlong  y;
+	uvlong phi;
+} ltcell;
+
+int    mklattice(int arena, vlong xmin, vlong xmax, vlong ymin, vlong ymax, uvlong init);
+void   rmlattice(int lattice);
+void   ltbounds(int lattice, vlong *xmin, vlong *xmax, vlong *ymin, vlong *ymax);
+uvlong ltbase(int lattice);
+uvlong ltphi(int lattice, vlong x, vlong y);
+void   rltphi(int lattice, vlong x, vlong y, uvlong phi);
+void   ltclear(int lattice);
+uvlong ltorth(int lattice, vlong x, vlong y, uvlong *buf, uvlong cap);
+uvlong ltsurr(int lattice, vlong x, vlong y, uvlong *buf, uvlong cap);
+uvlong ltphis(int lattice, ltcell *buf, uvlong cap);
