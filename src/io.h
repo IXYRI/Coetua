@@ -27,6 +27,10 @@ typedef struct perm {
 	bool   islnk:1;
 } perm;
 
+/* `perm` is a thin platform-facing mode shape for raw I/O. On Windows,
+   owner-write state is currently exposed as read-only/create-time mapping.
+   Rich ACL policy and UTF-16 path normalization remain future work. */
+
 /* Convert internal owner/group/other rwx bits to low 9 OS mode bits. */
 int   permtomode(perm p);
 

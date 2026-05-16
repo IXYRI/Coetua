@@ -151,26 +151,17 @@ int catstr(int arena, ...) {
 	return st;
 }
 
-int runetostr(int arena, rune *r) {
-	int st = mkstrand(arena);
-	if (st < 0) return -1;
-	if (!r) return st;
-	for (; *r; r++) concatr(st, *r);
-	return st;
+static void concatrunes(int strand, rune *runes) {
+	for (; runes && *runes; runes++) concatr(strand, *runes);
 }
 
-int strtorune(int arena, char *s) {
-	int seq = mkseq(arena);
-	if (seq < 0) return -1;
-
+static void atchrunes(int seq, char *s) {
 	while (s && *s) {
 		rune r;
 		int  n = chartorune(&r, s);
 		atch(seq, ( uvlong ) r);
 		s += n > 0 ? n : 1;
 	}
-	atch(seq, 0);
-	return seq;
 }
 
 void concat(int strand, char *s) {
@@ -367,6 +358,22 @@ int chartorune(rune *rp, char *s) {
 bad:
 	*rp = Runeerror;
 	return 1;
+}
+
+int runetostr(int arena, rune *r) {
+	int st = mkstrand(arena);
+	if (st < 0) return -1;
+	concatrunes(st, r);
+	return st;
+}
+
+int strtorune(int arena, char *s) {
+	int seq = mkseq(arena);
+	if (seq < 0) return -1;
+
+	atchrunes(seq, s);
+	atch(seq, 0);
+	return seq;
 }
 
 int runetochar(char *s, rune *rp) {

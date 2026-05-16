@@ -20,6 +20,7 @@ static int failures = 0;
 static char *path      = "test_io_temp.txt";
 static char *xpath     = "test_io_exclusive.txt";
 static char *delpath   = "test_io_delete.txt";
+static char *dirpath   = "test_io_created_dir";
 static char *slashdir  = "test_io_dir";
 static char *slashpath = "test_io_dir/slash_path.txt";
 static char *msg       = "Coetua I/O test\n";
@@ -32,12 +33,24 @@ static void  check_expected_error(bool ok, char *label) {
 }
 
 static void cleanup_files(void) {
+#if defined(_WIN32)
+	DWORD attr;
+	attr = GetFileAttributesA(path);
+	if (attr != INVALID_FILE_ATTRIBUTES) SetFileAttributesA(path, FILE_ATTRIBUTE_NORMAL);
+	attr = GetFileAttributesA(xpath);
+	if (attr != INVALID_FILE_ATTRIBUTES) SetFileAttributesA(xpath, FILE_ATTRIBUTE_NORMAL);
+	attr = GetFileAttributesA(delpath);
+	if (attr != INVALID_FILE_ATTRIBUTES) SetFileAttributesA(delpath, FILE_ATTRIBUTE_NORMAL);
+	attr = GetFileAttributesA(slashpath);
+	if (attr != INVALID_FILE_ATTRIBUTES) SetFileAttributesA(slashpath, FILE_ATTRIBUTE_NORMAL);
+#endif
 	remove(path);
 	remove(xpath);
 	remove(delpath);
 	remove(slashpath);
 #if defined(_WIN32)
 	RemoveDirectoryA(slashdir);
+	RemoveDirectoryA(dirpath);
 #endif
 }
 
@@ -70,6 +83,50 @@ static void permission_mapping(void) {
 	CHECK(permtomode((perm) {.bits = 0755}) == 0755, "permtomode 0755");
 	CHECK(permtomode((perm) {.bits = 0600}) == 0600, "permtomode 0600");
 	CHECK(permtomode((perm) {.bits = 0}) == 0, "permtomode 0000");
+}
+
+static void raw_permission_application(void) {
+	heading("permission application");
+#if defined(_WIN32)
+	remove(path);
+	int fd = dcreate(path, (omode) {.r = 1}, (perm) {.bits = 0444});
+	CHECK(fd >= 0, "dcreate read-only file");
+	if (fd >= 0) {
+		vlong n = dwrite(fd, msg, strlen(msg));
+		CHECK(n < 0, "read-only fd rejects write");
+		CHECK(err(), "dcreate read-only sets error");
+		errmsg(null);
+		dclose(fd);
+		DWORD attr = GetFileAttributesA(path);
+		CHECK(attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_READONLY),
+		      "dcreate read-only file sets readonly attribute");
+		SetFileAttributesA(path, FILE_ATTRIBUTE_NORMAL);
+	}
+
+	remove(path);
+	fd = dcreate(path, (omode) {.r = 1, .w = 1, .t = 1}, (perm) {.bits = 0444});
+	CHECK(fd >= 0, "dcreate writable fd with read-only metadata");
+	if (fd >= 0) {
+		vlong n = dwrite(fd, msg, strlen(msg));
+		CHECK(n == ( vlong ) strlen(msg), "omode controls current fd write access");
+		dclose(fd);
+		DWORD attr = GetFileAttributesA(path);
+		CHECK(attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_READONLY),
+		      "read-only metadata still applied after writable fd");
+		SetFileAttributesA(path, FILE_ATTRIBUTE_NORMAL);
+	}
+
+	fd = dcreate(path, (omode) {.r = 1, .w = 1, .t = 1}, (perm) {.bits = 0644});
+	CHECK(fd >= 0, "dcreate writable file over existing read-only file");
+	if (fd >= 0) {
+		vlong n = dwrite(fd, "fresh", 5);
+		CHECK(n == 5, "rewritten former read-only file accepts write");
+		dclose(fd);
+		DWORD attr = GetFileAttributesA(path);
+		CHECK(attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_READONLY),
+		      "writable permission clears previous readonly attribute");
+	}
+#endif
 }
 
 static void raw_create_read_seek(void) {
@@ -124,6 +181,13 @@ static void raw_truncate_modes(void) {
 	dclose(fd);
 	check_path_text("tail", "truncate+append clears then appends");
 	rewrite_file(path, msg);
+	fd = dopen(path, (omode) {.r = 1, .t = 1, .a = 1});
+	CHECK(fd >= 0, "dopen truncate+append without explicit write");
+	n = dwrite(fd, "open", 4);
+	CHECK(n == 4, "dopen truncate+append write returns byte count");
+	dclose(fd);
+	check_path_text("open", "dopen truncate+append clears then appends");
+	rewrite_file(path, msg);
 }
 
 static void raw_exclusive_mode(void) {
@@ -132,8 +196,18 @@ static void raw_exclusive_mode(void) {
 	int fd = dcreate(xpath, (omode) {.r = 1, .w = 1, .x = 1}, (perm) {.bits = 0644});
 	CHECK(fd >= 0, "dcreate exclusive creates missing file");
 	dclose(fd);
+
+#if defined(_WIN32)
+	SetFileAttributesA(xpath, FILE_ATTRIBUTE_READONLY);
+#endif
 	fd = dcreate(xpath, (omode) {.r = 1, .w = 1, .x = 1}, (perm) {.bits = 0644});
 	check_expected_error(fd < 0, "dcreate exclusive rejects existing file");
+#if defined(_WIN32)
+	DWORD attr = GetFileAttributesA(xpath);
+	CHECK(attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_READONLY),
+	      "dcreate exclusive does not mutate existing readonly file");
+	SetFileAttributesA(xpath, FILE_ATTRIBUTE_NORMAL);
+#endif
 	fd = dopen(xpath, (omode) {.r = 1, .x = 1});
 	check_expected_error(fd < 0, "dopen rejects meaningless exclusive flag");
 	remove(xpath);
@@ -186,6 +260,14 @@ static void raw_append_modes(void) {
 	check_path_text("base+tail", "append-only ignores seek before write");
 
 	rewrite_file(path, "base");
+	fd = dopen(path, (omode) {.r = 1, .a = 1});
+	CHECK(fd >= 0, "dopen append-only for pwrite reject");
+	n = pwrite(fd, "X", 1, 0);
+	check_expected_error(n < 0, "pwrite rejects append-only fd");
+	dclose(fd);
+	check_path_text("base", "append-only pwrite does not mutate file");
+
+	rewrite_file(path, "base");
 	fd = dopen(path, (omode) {.r = 1, .w = 1, .a = 1});
 	CHECK(fd >= 0, "dopen write+append");
 	dseek(fd, 0, 0);
@@ -212,6 +294,31 @@ static void raw_delete_on_close(void) {
 #endif
 }
 
+static void raw_special_create_modes(void) {
+#if defined(_WIN32)
+	heading("special create modes");
+	RemoveDirectoryA(dirpath);
+	int fd = dcreate(dirpath, (omode) {.r = 1}, (perm) {.bits = 0755, .isdir = 1});
+	CHECK(fd >= 0, "dcreate directory");
+	if (fd >= 0) dclose(fd);
+	DWORD attr = GetFileAttributesA(dirpath);
+	CHECK(attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY),
+	      "dcreate directory leaves directory on disk");
+	RemoveDirectoryA(dirpath);
+	fd = dcreate(dirpath, (omode) {.r = 1}, (perm) {.bits = 0555, .isdir = 1});
+	CHECK(fd >= 0, "dcreate directory ignores file readonly mapping");
+	if (fd >= 0) dclose(fd);
+	attr = GetFileAttributesA(dirpath);
+	CHECK(attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY) && !(attr & FILE_ATTRIBUTE_READONLY),
+	      "directory create does not apply read-only file attribute");
+	fd = dcreate(dirpath, (omode) {.r = 1, .x = 1}, (perm) {.bits = 0755, .isdir = 1});
+	check_expected_error(fd < 0, "dcreate exclusive directory rejects existing directory");
+	fd = dcreate("test_io_link", (omode) {.r = 1}, (perm) {.bits = 0644, .islnk = 1});
+	check_expected_error(fd < 0, "dcreate rejects symlink request");
+	RemoveDirectoryA(dirpath);
+#endif
+}
+
 static void raw_dreadn(void) {
 	char buf [128];
 
@@ -221,6 +328,13 @@ static void raw_dreadn(void) {
 	memset(buf, 0, sizeof(buf));
 	uvlong n = dreadn(fd, buf, strlen(msg));
 	CHECK(n == strlen(msg) && memcmp(buf, msg, strlen(msg)) == 0, "dreadn exact");
+	dclose(fd);
+
+	fd = dopen(path, (omode) {.r = 1});
+	CHECK(fd >= 0, "dopen for dreadn null test");
+	n = dreadn(fd, null, 1);
+	check_expected_error(n == 0, "dreadn rejects null nonzero buffer");
+	CHECK(dreadn(fd, null, 0) == 0 && !err(), "dreadn null zero length is harmless");
 	dclose(fd);
 }
 
@@ -309,11 +423,13 @@ int main(void) {
 
 	permission_mapping();
 	raw_create_read_seek();
+	raw_permission_application();
 	raw_truncate_modes();
 	raw_exclusive_mode();
 	raw_forward_slash_paths();
 	raw_append_modes();
 	raw_delete_on_close();
+	raw_special_create_modes();
 	raw_dreadn();
 	raw_positional_io();
 	raw_dprint();

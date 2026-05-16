@@ -18,6 +18,12 @@ static void slitr_is(slitr got, char *want, char *label) { CHECK(slitreq(got, sl
 
 static void strand_is(int strand, char *want, char *label) { slitr_is(obslitr(strand), want, label); }
 
+static void rune_seq_is(int seq, rune *want, uvlong n, char *label) {
+	bool ok = seq >= 0 && slen(seq) == n;
+	for (uvlong i = 0; ok && i < n; i++) ok = pick(seq, ( vlong ) i) == want [i];
+	CHECK(ok, label);
+}
+
 static void roundtrip_rune(rune r, int width, char *label) {
 	char buf [8];
 	rune got = 0;
@@ -104,15 +110,18 @@ static void strand_spec(void) {
 
 static void strand_helper_spec(void) {
 	printf("\n=== strand helpers ===\n");
+	char *mixed_utf = "A\xe4\xb8\x96\xf0\x9f\x98\x80";
+	rune  mixed []   = {'A', 0x4e16, 0x1f600, 0};
+	rune  badutf []  = {Runeerror, Runeerror, 0};
+	rune  empty []   = {0};
 	int st = catstr(0, "one", " ", "two", "", " three", null);
 	CHECK(st >= 0, "catstr returns strand descriptor");
 	strand_is(st, "one two three", "catstr concatenates C strings until null sentinel");
 	rmstrand(st);
 
-	rune rs [] = {'A', 0x4e16, 0x1f600, 0};
-	st         = runetostr(0, rs);
+	st = runetostr(0, mixed);
 	CHECK(st >= 0, "runetostr returns strand descriptor");
-	strand_is(st, "A\xe4\xb8\x96\xf0\x9f\x98\x80", "runetostr encodes zero-terminated rune array");
+	strand_is(st, mixed_utf, "runetostr encodes zero-terminated rune array");
 	rmstrand(st);
 
 	rune badrs [] = {0xd800, 0};
@@ -128,20 +137,17 @@ static void strand_helper_spec(void) {
 	CHECK(st >= 0 && obslitr(st).len == 0, "runetostr null input returns empty strand");
 	rmstrand(st);
 
-	int seq = strtorune(0, "A\xe4\xb8\x96\xf0\x9f\x98\x80");
+	int seq = strtorune(0, mixed_utf);
 	CHECK(seq >= 0, "strtorune returns sequence descriptor");
-	CHECK(
-	  slen(seq) == 4 && pick(seq, 0) == 'A' && pick(seq, 1) == 0x4e16 && pick(seq, 2) == 0x1f600 && pick(seq, 3) == 0,
-	  "strtorune decodes UTF-8 into zero-terminated rune sequence");
+	rune_seq_is(seq, mixed, arrlen(mixed), "strtorune decodes UTF-8 into zero-terminated rune sequence");
 	rmseq(seq);
 
 	seq = strtorune(0, "\xc0\x80");
-	CHECK(seq >= 0 && slen(seq) == 3 && pick(seq, 0) == Runeerror && pick(seq, 1) == Runeerror && pick(seq, 2) == 0,
-	      "strtorune preserves malformed bytes as Runeerror runes");
+	rune_seq_is(seq, badutf, arrlen(badutf), "strtorune preserves malformed bytes as Runeerror runes");
 	rmseq(seq);
 
 	seq = strtorune(0, null);
-	CHECK(seq >= 0 && slen(seq) == 1 && pick(seq, 0) == 0, "strtorune null input returns terminator-only sequence");
+	rune_seq_is(seq, empty, arrlen(empty), "strtorune null input returns terminator-only sequence");
 	rmseq(seq);
 }
 
@@ -281,8 +287,18 @@ static void token_spec(void) {
 	CHECK(tknize(buf, tok, 2) == 3 && strcmp(tok [0], "one") == 0 && strcmp(tok [1], "two") == 0,
 	      "tknize returns total tokens while storing only capacity");
 
+	strcpy(buf, "one two");
+	CHECK(tknize(buf, null, 8) == 2, "tknize accepts null output for count-only use");
+
+	strcpy(buf, "one two");
+	tok [0] = ( char * ) "sentinel";
+	CHECK(tknize(buf, tok, 0) == 2 && strcmp(tok [0], "sentinel") == 0,
+	      "tknize max zero counts without storing tokens");
+
 	strcpy(buf, "   ");
 	CHECK(tknize(buf, tok, 8) == 0, "tknize ignores all-whitespace input");
+
+	CHECK(tknize(null, tok, 8) == 0, "tknize null input is empty");
 }
 
 int main(void) {

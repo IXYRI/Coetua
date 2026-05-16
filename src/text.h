@@ -30,12 +30,12 @@ slitr slitrdup(slitr s, int arena); /* arena-allocated copy */
 
 int   mkstrand(int arena);
 slitr obslitr(int strand); /* current content as slitr  */
-/* Create arena-backed descriptors.  Return -1 on descriptor allocation failure.
-    catstr takes char* arguments terminated by null.
-    runetostr reads a zero-terminated rune array and writes UTF-8 bytes.
-    strtorune returns an mkseq-style descriptor containing a zero-terminated rune sequence. */
+/* Create a strand from char* arguments, terminated by null. */
 int   catstr(int arena, ...);
+/* Create a strand from a zero-terminated rune array.  Null input is empty. */
 int   runetostr(int arena, rune *r);
+/* Create a sequence descriptor containing decoded runes followed by a 0 terminator.
+   Null input returns a sequence containing only the terminator. */
 int   strtorune(int arena, char *s);
 void  concat(int strand, char *s);             /* append C string          */
 void  concats(int strand, slitr s);            /* append slitr             */
