@@ -13,6 +13,11 @@ static int failures = 0;
 	}                                       \
 	while (0)
 
+static void check_expected_error(bool ok, char *label) {
+	CHECK(ok && err(), label);
+	errmsg(null);
+}
+
 int main(void) {
 	printf("=== map: basic insert/lookup/oblit ===\n");
 	int m = mkmap(0);
@@ -36,10 +41,10 @@ int main(void) {
 	/* delete and verify gone */
 	CHECK(oblit(m, "lang", 4), "oblit lang");
 	vlen = sizeof(buf);
-	CHECK(!lookup(m, "lang", 4, buf, &vlen), "lookup after oblit returns false");
+	CHECK(!lookup(m, "lang", 4, buf, &vlen) && !err(), "lookup after oblit returns false quietly");
 
 	/* delete non-existent */
-	CHECK(!oblit(m, "nonexistent", 11), "oblit non-existent returns false");
+	CHECK(!oblit(m, "nonexistent", 11) && !err(), "oblit non-existent returns false quietly");
 
 	/* remaining keys still accessible */
 	vlen = sizeof(buf);
@@ -179,6 +184,9 @@ int main(void) {
 	        && vlen == sizeof(zero_val)
 	        && memcmp(buf, zero_val, sizeof(zero_val)) == 0,
 	      "all-zero binary key/value");
+	insert(m5, null, 0, null, 0);
+	vlen = sizeof(buf);
+	CHECK(lookup(m5, null, 0, buf, &vlen) && vlen == 0 && !err(), "null zero-length key/value is valid");
 	rmmap(m5);
 
 	printf("\n=== map: lookup buf too small ===\n");
@@ -198,7 +206,7 @@ int main(void) {
 	CHECK(lookup(m7, "keep", 4, buf, &vlen) && vlen == 3 && memcmp(buf, "new", 3) == 0, "revamp updates existing key");
 	revamp(m7, "absent", 6, "no", 2);
 	vlen = sizeof(buf);
-	CHECK(!lookup(m7, "absent", 6, buf, &vlen), "revamp does not insert absent key");
+	CHECK(!lookup(m7, "absent", 6, buf, &vlen) && !err(), "revamp does not insert absent key quietly");
 	rmmap(m7);
 
 	printf("\n=== map: conjoin ===\n");
@@ -234,6 +242,8 @@ int main(void) {
 	CHECK(lookup(self, "b", 1, buf, &vlen) && vlen == 3 && memcmp(buf, "R-b", 3) == 0,
 	      "conjoin left overwrites shared");
 	CHECK(!lookup(self, "c", 1, buf, &vlen), "conjoin left ignores right-only");
+	conjoin(self, right, 99);
+	check_expected_error(true, "conjoin rejects bad method");
 	rmmap(left);
 	rmmap(right);
 	rmmap(inner);
@@ -265,7 +275,34 @@ int main(void) {
 		else if (!has) set_ok = false;
 	}
 	CHECK(set_ok, "set compact preserves live binary/string keys and deleted keys stay gone");
+	adds(ss, null, 0);
+	CHECK(mems(ss, null, 0) && !err(), "set accepts null zero-length key");
+	dels(ss, "missing", 7);
+	CHECK(!err(), "dels missing key is quiet");
+	check_expected_error(!mems(-1, "x", 1), "mems invalid descriptor sets error");
+	adds(ss, null, 1);
+	check_expected_error(true, "adds null nonzero key sets error");
+	dels(ss, null, 1);
+	check_expected_error(true, "dels null nonzero key sets error");
 	rmset(ss);
+
+	printf("\n=== map: errors ===\n");
+	m = mkmap(0);
+	vlen = sizeof(buf);
+	check_expected_error(!lookup(-1, "k", 1, buf, &vlen), "lookup invalid descriptor sets error");
+	insert(-1, "k", 1, "v", 1);
+	check_expected_error(true, "insert invalid descriptor sets error");
+	insert(m, null, 1, "v", 1);
+	check_expected_error(true, "insert null nonzero key sets error");
+	insert(m, "k", 1, null, 1);
+	check_expected_error(true, "insert null nonzero value sets error");
+	check_expected_error(!lookup(m, null, 1, buf, &vlen), "lookup null nonzero key sets error");
+	check_expected_error(!oblit(m, null, 1), "oblit null nonzero key sets error");
+	revamp(m, null, 1, "v", 1);
+	check_expected_error(true, "revamp null nonzero key sets error");
+	revamp(m, "k", 1, null, 1);
+	check_expected_error(true, "revamp null nonzero value sets error");
+	rmmap(m);
 
 	printf("\n=== result: %d failures ===\n", failures);
 	return failures;

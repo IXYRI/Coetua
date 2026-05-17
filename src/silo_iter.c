@@ -153,9 +153,15 @@ static bool iter_next_hash(iter_t *it, htab_t *t, void *data) {
 }
 
 bool next(int ii, void *data) {
-	if (!data) return false;
+	if (!data) {
+		errmsg("next: bad output");
+		return false;
+	}
 	iter_t *it = iter_get(ii);
-	if (!it) return false;
+	if (!it) {
+		errmsg("next: bad iterator");
+		return false;
+	}
 	silo_t *s;
 	htab_t *t;
 	if (!iter_source(it->desc, &s, &t)) return false;

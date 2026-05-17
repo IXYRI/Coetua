@@ -93,6 +93,12 @@ static bio *bio_get(int bd) {
 	return &bios [bd];
 }
 
+static bio *bio_get_err(int bd, char *who) {
+	bio *b = bio_get(bd);
+	if (!b && !err()) errmsg(who);
+	return b;
+}
+
 static void bio_reset_slot(bio *b, int arena) { *b = (bio) {.fd = -1, .arena = arena, .live = true}; }
 
 static bool bio_ensure_buf(bio *b) {
@@ -120,7 +126,7 @@ int mkbio(int arena) {
 }
 
 void binit(int bd, int fd, omode mod) {
-	bio *b = bio_get(bd);
+	bio *b = bio_get_err(bd, "binit: bad buffer");
 	if (!b) return;
 	if (b->fd >= 0) {
 		bflush(bd);
@@ -156,7 +162,7 @@ int         bopen(int arena, char *file, omode mod) {
 }
 
 int bfildes(int bd) {
-	bio *b = bio_get(bd);
+	bio *b = bio_get_err(bd, "bfildes: bad buffer");
 	return b ? b->fd : -1;
 }
 
@@ -234,6 +240,10 @@ int brdstr(int bd, int arena, rune delim, bool nulldelim) {
 			break;
 		}
 		concatr(sd, r);
+	}
+	if (err()) {
+		rmstrand(sd);
+		return -1;
 	}
 	return sd;
 }
@@ -327,7 +337,7 @@ vlong bwrite(int bd, void *buf, uvlong len) {
 }
 
 uvlong bbuffered(int bd) {
-	bio *b = bio_get(bd);
+	bio *b = bio_get_err(bd, "bbuffered: bad buffer");
 	if (!b || b->fd < 0) return 0;
 	if (b->writing) return b->pos;
 	return (b->len > b->pos ? b->len - b->pos : 0) + ( uvlong ) b->ungetn;
@@ -553,9 +563,9 @@ double bgetd(int bd) {
 }
 
 void bflush(int bd) {
-	bio *b = bio_get(bd);
+	bio *b = bio_get_err(bd, "bflush: bad buffer");
 	if (!b) return;
-	if (b->writing && !bio_flush_write(b)) errmsg("bflush: write failed");
+	if (b->writing && !bio_flush_write(b) && !err()) errmsg("bflush: write failed");
 	b->writing = false;
 }
 

@@ -8,6 +8,12 @@ static silo_t *linear_get(int desc, int type) {
 	return s;
 }
 
+static silo_t *linear_need(int desc, int type, char *who) {
+	silo_t *s = linear_get(desc, type);
+	if (!s) errmsg(who);
+	return s;
+}
+
 static silo_t *seq_get(int seq, char *who) {
 	silo_t *s = linear_get(seq, silo_seq);
 	if (!s) errmsg(who);
@@ -55,22 +61,30 @@ static void seq_shift_left(silo_t *s, uvlong pos) {
 int  mkstack(int arena) { return silo_new(silo_stack, arena); }
 
 void push(int stack, uvlong data) {
-	silo_t *s = linear_get(stack, silo_stack);
+	silo_t *s = linear_need(stack, silo_stack, "push: bad stack");
 	if (!s) return;
 	append_linear(s, data);
 }
 
 uvlong pop(int stack) {
-	silo_t *s = linear_get(stack, silo_stack);
-	if (!s || s->len == 0) return 0;
+	silo_t *s = linear_need(stack, silo_stack, "pop: bad stack");
+	if (!s) return 0;
+	if (s->len == 0) {
+		errmsg("pop: empty stack");
+		return 0;
+	}
 	uvlong v = s->data [--s->len];
 	silo_touch(s);
 	return v;
 }
 
 uvlong peep(int stack) {
-	silo_t *s = linear_get(stack, silo_stack);
-	if (!s || s->len == 0) return 0;
+	silo_t *s = linear_need(stack, silo_stack, "peep: bad stack");
+	if (!s) return 0;
+	if (s->len == 0) {
+		errmsg("peep: empty stack");
+		return 0;
+	}
 	return s->data [s->len - 1];
 }
 
@@ -84,10 +98,13 @@ void rmstack(int stack) {
 int  mkqueue(int arena) { return silo_new(silo_queue, arena); }
 
 void enqueue(int queue, uvlong data) {
-	silo_t *s = linear_get(queue, silo_queue);
+	silo_t *s = linear_need(queue, silo_queue, "enqueue: bad queue");
 	if (!s) return;
 	uvlong needed;
-	if (!addok64(s->len, 1, &needed)) return;
+	if (!addok64(s->len, 1, &needed)) {
+		errmsg("enqueue: size overflow");
+		return;
+	}
 	if (!silo_grow(s, needed)) return;
 	uvlong idx    = (s->head + s->len) % s->cap;
 	s->data [idx] = data;
@@ -96,8 +113,12 @@ void enqueue(int queue, uvlong data) {
 }
 
 uvlong dequeue(int queue) {
-	silo_t *s = linear_get(queue, silo_queue);
-	if (!s || s->len == 0) return 0;
+	silo_t *s = linear_need(queue, silo_queue, "dequeue: bad queue");
+	if (!s) return 0;
+	if (s->len == 0) {
+		errmsg("dequeue: empty queue");
+		return 0;
+	}
 	uvlong val = s->data [s->head];
 	s->head    = (s->head + 1) % s->cap;
 	s->len--;
@@ -106,8 +127,12 @@ uvlong dequeue(int queue) {
 }
 
 uvlong peekq(int queue) {
-	silo_t *s = linear_get(queue, silo_queue);
-	if (!s || s->len == 0) return 0;
+	silo_t *s = linear_need(queue, silo_queue, "peekq: bad queue");
+	if (!s) return 0;
+	if (s->len == 0) {
+		errmsg("peekq: empty queue");
+		return 0;
+	}
 	return s->data [s->head];
 }
 

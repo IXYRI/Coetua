@@ -1,6 +1,9 @@
 #include "silo_priv.h"
+#include "err.h"
 #include "hash.h"
 #include <string.h>
+
+static uchar empty_data;
 
 /* Multisets store counts in the map value area and intentionally reuse
  * insert/lookup/oblit/revamp.  Plain map-only operations use getmap. */
@@ -9,9 +12,27 @@ static htab_t *getkv(int map) {
 	return t && t->ismap ? t : null;
 }
 
+static htab_t *needkv(int map, char *who) {
+	htab_t *t = getkv(map);
+	if (!t) errmsg(who);
+	return t;
+}
+
 static htab_t *getmap(int map) {
 	htab_t *t = htab_get(map);
 	return t && t->ismap && !t->ismultiset ? t : null;
+}
+
+static htab_t *needmap(int map, char *who) {
+	htab_t *t = getmap(map);
+	if (!t) errmsg(who);
+	return t;
+}
+
+static void *bytes_arg(void *p, uvlong len, char *who) {
+	if (p || len == 0) return p ? p : &empty_data;
+	errmsg(who);
+	return null;
 }
 
 static uchar *map_key(htab_t *t, uvlong idx, uint *len) {
@@ -29,12 +50,12 @@ static void map_write_pair(htab_t *t, uvlong idx, uvlong hash, void *key, uvlong
 	t->meta [idx]  = htab_hash_meta(hash);
 	t->koffs [idx] = t->key_total;
 	t->klens [idx] = ( uint ) klen;
-	memcpy(t->keys + t->key_total, key, klen);
+	if (klen) memcpy(t->keys + t->key_total, key, klen);
 	t->key_total   += ( uint ) klen;
 
 	t->voffs [idx]  = t->val_total;
 	t->vlens [idx]  = ( uint ) vlen;
-	memcpy(t->vals + t->val_total, val, vlen);
+	if (vlen) memcpy(t->vals + t->val_total, val, vlen);
 	t->val_total += ( uint ) vlen;
 }
 
@@ -51,8 +72,12 @@ int mkmap(int arena) {
 }
 
 void insert(int map, void *key, uvlong klen, void *val, uvlong vlen) {
-	htab_t *t = getkv(map);
+	htab_t *t = needkv(map, "insert: bad map");
 	if (!t) return;
+	key = bytes_arg(key, klen, "insert: bad key");
+	if (!key) return;
+	val = bytes_arg(val, vlen, "insert: bad value");
+	if (!val) return;
 	if (!htab_maybe_grow(t)) return;
 	uvlong h = xxhash64(key, klen);
 	bool   found;
@@ -68,8 +93,10 @@ void insert(int map, void *key, uvlong klen, void *val, uvlong vlen) {
 }
 
 bool lookup(int map, void *key, uvlong klen, void *buf, uvlong *vlen) {
-	htab_t *t = getkv(map);
+	htab_t *t = needkv(map, "lookup: bad map");
 	if (!t) return false;
+	key = bytes_arg(key, klen, "lookup: bad key");
+	if (!key) return false;
 	if (t->cap == 0) return false;
 	uvlong h = xxhash64(key, klen);
 	bool   found;
@@ -86,8 +113,10 @@ bool lookup(int map, void *key, uvlong klen, void *buf, uvlong *vlen) {
 }
 
 bool oblit(int map, void *key, uvlong klen) {
-	htab_t *t = getkv(map);
+	htab_t *t = needkv(map, "oblit: bad map");
 	if (!t) return false;
+	key = bytes_arg(key, klen, "oblit: bad key");
+	if (!key) return false;
 	if (t->cap == 0) return false;
 	uvlong h = xxhash64(key, klen);
 	bool   found;
@@ -98,8 +127,12 @@ bool oblit(int map, void *key, uvlong klen) {
 }
 
 void revamp(int map, void *key, uvlong klen, void *val, uvlong vlen) {
-	htab_t *t = getkv(map);
+	htab_t *t = needkv(map, "revamp: bad map");
 	if (!t) return;
+	key = bytes_arg(key, klen, "revamp: bad key");
+	if (!key) return;
+	val = bytes_arg(val, vlen, "revamp: bad value");
+	if (!val) return;
 	if (t->cap == 0) return;
 	uvlong h = xxhash64(key, klen);
 	bool   found;
@@ -109,9 +142,14 @@ void revamp(int map, void *key, uvlong klen, void *val, uvlong vlen) {
 }
 
 void conjoin(int dst, int src, int method) {
-	htab_t *d = getmap(dst);
-	htab_t *s = getmap(src);
-	if (!d || !s) return;
+	if (method < 0 || method > 2) {
+		errmsg("conjoin: bad method");
+		return;
+	}
+	htab_t *d = needmap(dst, "conjoin: bad map");
+	if (!d) return;
+	htab_t *s = needmap(src, "conjoin: bad map");
+	if (!s) return;
 	if (d == s) return;
 	if (method == 0) {
 		for (uvlong i = 0; i < d->cap; i++) {

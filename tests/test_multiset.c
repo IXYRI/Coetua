@@ -13,6 +13,11 @@ static int failures = 0;
 	}                                       \
 	while (0)
 
+static void check_expected_error(bool ok, char *label) {
+	CHECK(ok && err(), label);
+	errmsg(null);
+}
+
 static bool pair_key_eq(uvlong *fields, char *a, char *b) {
 	uvlong *pair = ( uvlong * ) fields [1];
 	return fields [0] == sizeof(uvlong) * 4
@@ -47,6 +52,7 @@ int main(void) {
 	CHECK(memms(ms, "cat", 3), "memms cat");
 	CHECK(cntms(ms, "cat", 3) == 2, "cat count 2");
 	CHECK(cntms(ms, "dog", 3) == 1, "dog count 1");
+	CHECK(cntms(ms, "eel", 3) == 0 && !err(), "cntms missing key is quiet");
 	CHECK(carten(ms) == 2, "cardinality counts distinct keys");
 
 	delms(ms, "cat", 3);
@@ -55,6 +61,10 @@ int main(void) {
 	CHECK(!memms(ms, "cat", 3) && cntms(ms, "cat", 3) == 0, "delms removes at zero");
 	prgms(ms, "dog", 3);
 	CHECK(carten(ms) == 0, "prgms removes key");
+	prgms(ms, "missing", 7);
+	CHECK(!err(), "prgms missing key is quiet");
+	addms(ms, null, 0);
+	CHECK(memms(ms, null, 0) && cntms(ms, null, 0) == 1 && !err(), "multiset accepts null zero-length key");
 
 	printf("\n=== multiset: algebra ===\n");
 	int a = mkmultiset(0);
@@ -127,6 +137,21 @@ int main(void) {
 	CHECK(pair_count(prod, "b", "x") == 1, "cartprodms multiplies bx count");
 	CHECK(pair_count(prod, "b", "y") == 2, "cartprodms multiplies by count");
 	CHECK(carten(prod) == 4, "cartprodms distinct pair count");
+
+	printf("\n=== multiset: errors ===\n");
+	check_expected_error(cntms(-1, "x", 1) == 0, "cntms invalid descriptor sets error");
+	check_expected_error(!memms(-1, "x", 1), "memms invalid descriptor sets error");
+	addms(-1, "x", 1);
+	check_expected_error(true, "addms invalid descriptor sets error");
+	addms(ms, null, 1);
+	check_expected_error(true, "addms null nonzero key sets error");
+	delms(ms, null, 1);
+	check_expected_error(true, "delms null nonzero key sets error");
+	prgms(ms, null, 1);
+	check_expected_error(true, "prgms null nonzero key sets error");
+	check_expected_error(!submultisets(-1, ms), "submultisets bad operand sets error");
+	check_expected_error(!simsubmss(ms, -1, 0, 0), "simsubmss bad operand sets error");
+	check_expected_error(cartprodms(0, ms, -1) < 0, "cartprodms bad operand sets error");
 
 	rmmultiset(ms);
 	rmmultiset(a);

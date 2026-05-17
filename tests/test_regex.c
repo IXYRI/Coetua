@@ -15,6 +15,11 @@ static int failures = 0;
 	}                                       \
 	while (0)
 
+static void check_expected_error(bool ok, char *label) {
+	CHECK(ok && err(), label);
+	errmsg(null);
+}
+
 static void expect_match(char *pat, char *text, int want, char *label) {
 	Reprog *re = regcomp9(0, pat);
 	if (!re) {
@@ -114,6 +119,18 @@ static void expect_qty(char *pat, char *text, int idx, uvlong want, char *label)
 	printf("  ok: %s\n", label);
 }
 
+static void error_edges(void) {
+	printf("\n=== regex errors ===\n");
+	check_expected_error(regcomp9(0, null) == null, "regcomp9 null pattern sets error");
+	Reprog *re = regcomp9(0, "abc");
+	CHECK(re != null, "regcomp9 for error edges");
+	Resub m [1];
+	CHECK(regexec9(re, "zzz", 3, m, 1) == 0 && !err(), "regexec9 no match is quiet");
+	check_expected_error(regexec9(null, "abc", 3, m, 1) < 0, "regexec9 null program sets error");
+	check_expected_error(regexec9(re, null, 0, m, 1) < 0, "regexec9 null text sets error");
+	check_expected_error(regexec9(re, "abc", 3, null, 1) < 0, "regexec9 null match vector sets error");
+}
+
 int main(void) {
 	printf("=== regex9 skeleton ===\n");
 	expect_match("abc", "abc", 1, "literal match");
@@ -161,6 +178,7 @@ int main(void) {
 	expect_qty("(a)@()'", "aaa", 2, 3, "(a)@()' qty \\2");
 	expect_qty("a@()'(b)", "aab", 1, 2, "a@()'(b) qty \\1");
 	expect_cap("a@()'(b)", "aab", 2, "b", "a@()'(b) group \\2");
+	error_edges();
 
 	printf("\n=== result: %d failures ===\n", failures);
 	return failures;

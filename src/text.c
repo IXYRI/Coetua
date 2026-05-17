@@ -39,7 +39,10 @@ int slitrcmp(slitr a, slitr b) {
 slitr slitrdup(slitr s, int arena) {
 	if (s.len == 0 || !s.s) return slitr_empty();
 	uvlong size;
-	if (!addok64(s.len, 1, &size)) return slitr_empty();
+	if (!addok64(s.len, 1, &size)) {
+		errmsg("slitrdup: size overflow");
+		return slitr_empty();
+	}
 	char *p = ( char * ) aden(arena, size);
 	if (!p) return slitr_empty();
 	memcpy(p, s.s, ( uvlong ) s.len);
@@ -135,7 +138,10 @@ int mkstrand(int arena) {
 
 slitr obslitr(int strand) {
 	strand_t *st = strand_get(strand);
-	if (!st) return slitr_empty();
+	if (!st) {
+		errmsg("obslitr: bad strand");
+		return slitr_empty();
+	}
 	return mkslitr(st->data, st->len);
 }
 
@@ -171,7 +177,11 @@ void concat(int strand, char *s) {
 
 void concats(int strand, slitr s) {
 	strand_t *st = strand_get(strand);
-	if (!st || s.len == 0 || !s.s) return;
+	if (!st) {
+		errmsg("concats: bad strand");
+		return;
+	}
+	if (s.len == 0 || !s.s) return;
 	uvlong needed;
 	if (!strand_needed(st, s.len, &needed)) return;
 	if (!strand_grow(st, needed)) return;
@@ -189,7 +199,11 @@ void concatr(int strand, rune r) {
 
 void putstr(int strand, vlong pos, char *s) {
 	strand_t *st = strand_get(strand);
-	if (!st || !s) return;
+	if (!st) {
+		errmsg("putstr: bad strand");
+		return;
+	}
+	if (!s) return;
 	uvlong slen = strlen(s);
 	if (pos < 0) pos += ( vlong ) st->len;
 	if (pos < 0 || ( uvlong ) pos > st->len) return;
@@ -205,7 +219,10 @@ void putstr(int strand, vlong pos, char *s) {
 
 void dropstr(int strand, vlong pos, vlong n) {
 	strand_t *st = strand_get(strand);
-	if (!st) return;
+	if (!st) {
+		errmsg("dropstr: bad strand");
+		return;
+	}
 	if (pos < 0) pos += ( vlong ) st->len;
 	if (n < 0) n = -n, pos -= n;
 	if (pos < 0 || ( uvlong ) pos >= st->len) return;
@@ -218,7 +235,11 @@ void dropstr(int strand, vlong pos, vlong n) {
 
 void repeat(int strand, uvlong n) {
 	strand_t *st = strand_get(strand);
-	if (!st || n <= 1 || st->len == 0) return;
+	if (!st) {
+		errmsg("repeat: bad strand");
+		return;
+	}
+	if (n <= 1 || st->len == 0) return;
 	uvlong len, needed;
 	if (!mulok64(st->len, n, &len) || !addok64(len, 1, &needed)) {
 		errmsg("strand: size overflow");

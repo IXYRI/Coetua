@@ -149,7 +149,11 @@ static bool verb_registry_grow(void) {
 }
 
 void fmtinstall(rune c, bool (*fn)(fmt *)) {
-	if (!fn || !verb_registry_init()) return;
+	if (!fn) {
+		errmsg("fmtinstall: bad formatter");
+		return;
+	}
+	if (!verb_registry_init()) return;
 	for (int i = 0; i < nverbs; i++) {
 		if (verb_registry [i].c == c) {
 			verb_registry [i].fn = fn;
@@ -391,6 +395,10 @@ static void afmt_put_int(int sd, int v) {
 }
 
 static char *afmt_normalize(char *sf, fmt *fp) {
+	if (!sf) {
+		errmsg("fmt %a: bad subformat");
+		return null;
+	}
 	int sd = mkstrand(0);
 	if (sd < 0) return null;
 	for (char *p = sf; *p;) {
@@ -435,11 +443,13 @@ static char *afmt_normalize(char *sf, fmt *fp) {
 	uvlong outlen;
 	if (!addok64(s.len, 1, &outlen)) {
 		rmstrand(sd);
+		errmsg("fmt %a: format too large");
 		return null;
 	}
 	char *out = malloc(( size_t ) outlen);
 	if (!out) {
 		rmstrand(sd);
+		errmsg("fmt %a: out of memory");
 		return null;
 	}
 	if (s.len > 0) memcpy(out, s.s, s.len);
@@ -465,7 +475,7 @@ static void afmt_release(afmt_state *st) {
 }
 
 static bool afmt_fail(afmt_state *st, char *msg) {
-	if (msg) errmsg(msg);
+	if (msg && !err()) errmsg(msg);
 	afmt_release(st);
 	return false;
 }
@@ -485,9 +495,15 @@ static void afmt_append_text(fmt *fp, char *start, char *end) {
 static char *afmt_spec_cstr(fmt_spec s) {
 	uvlong len = ( uvlong ) (s.end - s.start);
 	uvlong size;
-	if (!addok64(len, 1, &size)) return null;
+	if (!addok64(len, 1, &size)) {
+		errmsg("fmt %a: format too large");
+		return null;
+	}
 	char *p = malloc(( size_t ) size);
-	if (!p) return null;
+	if (!p) {
+		errmsg("fmt %a: out of memory");
+		return null;
+	}
 	if (len > 0) memcpy(p, s.start, len);
 	p [len] = 0;
 	return p;
@@ -618,6 +634,7 @@ static bool afmt_parse_formats(fmt *fp, afmt_state *st, char *subfmt) {
 	if (!afmt_set_span(st)) return false;
 	if (st->compound && st->plan.nested_array) {
 		char *inner      = va_arg(fp->args, char *);
+		if (!inner) return afmt_fail(st, "fmt %a: bad subformat");
 		st->inner_subfmt = afmt_normalize(inner, fp);
 		if (!st->inner_subfmt) return afmt_fail(st, null);
 	}
@@ -629,7 +646,8 @@ static bool afmt_init(fmt *fp, afmt_state *st) {
 	if (!afmt_parse_count(fp, st)) return false;
 
 	char *subfmt = va_arg(fp->args, char *);
-	if (!st->base || !subfmt) return false;
+	if (!subfmt) return afmt_fail(st, "fmt %a: bad subformat");
+	if (!st->base && st->count > 0) return afmt_fail(st, "fmt %a: bad source");
 
 	/* In %a only, # means compound element stride.  Other verbs keep
 	   interpreting the same syntax as ordinary alternate form. */
@@ -681,6 +699,10 @@ static bool fmt_verb_a(fmt *fp) {
 
 static bool fmt_verb_t(fmt *fp) {
 	slitr sl   = va_arg(fp->args, slitr);
+	if (!sl.s && sl.len > 0) {
+		errmsg("fmt %t: bad slitr");
+		return false;
+	}
 	int   slen = ( int ) sl.len;
 	if ((fp->flags & FMT_PREC) && fp->prec < slen) slen = fp->prec;
 	fmt_putfield(fp, mkslitr(sl.s, ( uvlong ) slen));
@@ -1124,7 +1146,10 @@ static bool (*fmt_custom_fn(rune c))(fmt *) {
 }
 
 int vfmts(int arena, char *fm, va_list args) {
-	if (!fm) return -1;
+	if (!fm) {
+		errmsg("vfmts: bad format");
+		return -1;
+	}
 
 	int sd = mkstrand(arena);
 	if (sd < 0) return -1;

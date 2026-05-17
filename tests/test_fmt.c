@@ -14,6 +14,11 @@ static int failures = 0;
 	}                                       \
 	while (0)
 
+static void check_expected_error(bool ok, char *label) {
+	CHECK(ok && err(), label);
+	errmsg(null);
+}
+
 static bool verb_U(fmt *fp) {
 	char *s = va_arg(fp->args, char *);
 	if (!s) s = "";
@@ -806,6 +811,25 @@ static void rune_verb(void) {
 	}
 }
 
+static void error_edges(void) {
+	heading("errors");
+	check_expected_error(fmts(0, null) < 0, "fmts null format sets error");
+	fmtinstall('Q', null);
+	check_expected_error(true, "fmtinstall null callback sets error");
+	int sd = fmts(0, "%t", (slitr) {.s = null, .len = 1});
+	check_expected_error(sd >= 0, "%%t null nonzero slitr sets error");
+	if (sd >= 0) rmstrand(sd);
+	sd = fmts(0, "%;a", (arrst) {.x = null, .len = 1}, "%d");
+	check_expected_error(sd >= 0, "%%a null nonzero arrst source sets error");
+	if (sd >= 0) rmstrand(sd);
+	sd = fmts(0, "%.1a", ( void * ) null, "%d");
+	check_expected_error(sd >= 0, "%%a null counted source sets error");
+	if (sd >= 0) rmstrand(sd);
+	sd = fmts(0, "%.0a", ( void * ) null, "%d");
+	CHECK(sd >= 0 && obslitr(sd).len == 0 && !err(), "%%a zero count accepts null source");
+	if (sd >= 0) rmstrand(sd);
+}
+
 int main(void) {
 	basic_verbs();
 	width_and_precision();
@@ -821,6 +845,7 @@ int main(void) {
 	slitr_verb();
 	comma_flags();
 	rune_verb();
+	error_edges();
 
 	printf("\n=== result: %d failures ===\n", failures);
 	return failures;

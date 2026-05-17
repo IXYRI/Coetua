@@ -354,6 +354,7 @@ static void raw_positional_io(void) {
 	check_expected_error(n < 0, "pread rejects null nonzero buffer");
 	pos = dseek(fd, 0, 1);
 	CHECK(pos == 6, "pread failure preserves current offset");
+	CHECK(pread(fd, null, 0, 1) == 0 && !err(), "pread null zero length is harmless");
 	n = pwrite(fd, "XY", 2, 2);
 	CHECK(n == 2, "pwrite returns byte count");
 	pos = dseek(fd, 0, 1);
@@ -362,6 +363,7 @@ static void raw_positional_io(void) {
 	check_expected_error(n < 0, "pwrite rejects null nonzero buffer");
 	pos = dseek(fd, 0, 1);
 	CHECK(pos == 6, "pwrite failure preserves current offset");
+	CHECK(pwrite(fd, null, 0, 1) == 0 && !err(), "pwrite null zero length is harmless");
 	n = pread(fd, buf, 1, ( uvlong ) 1 << 63);
 	check_expected_error(n < 0, "pread rejects offset beyond vlong range");
 	pos = dseek(fd, 0, 1);
@@ -375,6 +377,10 @@ static void raw_positional_io(void) {
 	dread(fd, buf, 6);
 	CHECK(memcmp(buf, "abXYef", 6) == 0, "pwrite overwrites at offset");
 	dclose(fd);
+	n = pread(fd, buf, 1, 0);
+	check_expected_error(n < 0, "pread bad fd sets error");
+	n = pwrite(fd, "Q", 1, 0);
+	check_expected_error(n < 0, "pwrite bad fd sets error");
 }
 
 static void raw_dprint(void) {

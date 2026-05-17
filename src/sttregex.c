@@ -4,6 +4,7 @@
 #include "err.h"
 #include "text.h"
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -32,17 +33,28 @@ typedef struct {
 
 /* ── parser ─────────────────────────────────────────── */
 
-static char *read_delimited(char **sp, int arena) {
+static char *read_delimited(char **sp, int arena, bool *fatal) {
 	char  *s   = *sp;
 	uvlong cap = 64, len = 0;
 	char  *buf = aden(arena, cap);
-	if (!buf) return null;
+	if (!buf) {
+		*fatal = true;
+		return null;
+	}
 	while (*s && *s != '/') {
 		if (*s == '\\' && s [1] == '/') s++;
 		if (len + 2 > cap) {
-			uvlong ncap = cap * 2;
+			uvlong ncap;
+			if (!mulok64(cap, 2, &ncap)) {
+				errmsg("sttregex: field too large");
+				*fatal = true;
+				return null;
+			}
 			char  *nb   = aden(arena, ncap);
-			if (!nb) return null;
+			if (!nb) {
+				*fatal = true;
+				return null;
+			}
 			memcpy(nb, buf, len);
 			buf = nb;
 			cap = ncap;
@@ -59,11 +71,15 @@ static char *read_delimited(char **sp, int arena) {
 	return buf;
 }
 
-static Cmd *parse(int arena, char *se, int *nout) {
+static Cmd *parse(int arena, char *se, int *nout, bool *fatal) {
 	uvlong cc = 8;
 	Cmd   *ca = calloc(( size_t ) cc, sizeof(Cmd));
 	int    nc = 0;
-	if (!ca) return null;
+	if (!ca) {
+		errmsg("sttregex: out of memory");
+		*fatal = true;
+		return null;
+	}
 
 	while (*se) {
 		if (*se == ' ') {
@@ -72,9 +88,17 @@ static Cmd *parse(int arena, char *se, int *nout) {
 		}
 
 		if (nc >= ( int ) cc) {
-			cc       *= 2;
+			uvlong ncc;
+			if (!mulok64(cc, 2, &ncc) || ncc > ( uvlong ) (SIZE_MAX / sizeof(Cmd))) {
+				errmsg("sttregex: command overflow");
+				*fatal = true;
+				goto fail;
+			}
+			cc       = ncc;
 			Cmd *nca  = realloc(ca, ( size_t ) (cc * sizeof(Cmd)));
 			if (!nca) {
+				errmsg("sttregex: out of memory");
+				*fatal = true;
 				free(ca);
 				return null;
 			}
@@ -107,11 +131,11 @@ static Cmd *parse(int arena, char *se, int *nout) {
 				goto fail;
 			}
 			se++;
-			char *field = read_delimited(&se, arena);
+			char *field = read_delimited(&se, arena, fatal);
 			if (!field) goto fail;
 			c->re = regcomp9(arena, field);
 			if (!c->re) goto fail;
-			c->txt = read_delimited(&se, arena);
+			c->txt = read_delimited(&se, arena, fatal);
 			if (!c->txt) goto fail;
 			c->tlen = strlen(c->txt);
 			nc++;
@@ -129,13 +153,13 @@ onefield:
 		}
 		se++;
 		if (c->type == CT_X || c->type == CT_Y || c->type == CT_G || c->type == CT_V) {
-			char *field = read_delimited(&se, arena);
+			char *field = read_delimited(&se, arena, fatal);
 			if (!field) goto fail;
 			c->re = regcomp9(arena, field);
 			if (!c->re) goto fail;
 		}
 		else {
-			c->txt = read_delimited(&se, arena);
+			c->txt = read_delimited(&se, arena, fatal);
 			if (!c->txt) goto fail;
 			c->tlen = strlen(c->txt);
 		}
@@ -258,6 +282,7 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 		Resub m [64];
 		memset(m, 0, sizeof(m));
 		int  ok   = regexec9(c->re, in.s, in.len, m, 64);
+		if (ok < 0) return -1;
 		bool pass = (c->type == CT_G) ? (ok > 0) : (ok <= 0);
 		if (!pass) {
 			if (!subchain_pick(ca, nc, idx + 1)) concats(out, in);
@@ -268,6 +293,7 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 
 	case CT_S : {
 		int   tmp = mkstrand(arena);
+		if (tmp < 0) return -1;
 		char *p   = in.s;
 		char *eos = in.s + in.len;
 		while (p < eos) {
@@ -275,7 +301,11 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 			memset(m, 0, sizeof(m));
 			uvlong remain = ( uvlong ) (eos - p);
 			int    ok     = regexec9(c->re, p, remain, m, 64);
-			if (ok <= 0) {
+			if (ok < 0) {
+				rmstrand(tmp);
+				return -1;
+			}
+			if (ok == 0) {
 				concats(tmp, mkslitr(p, ( uvlong ) (eos - p)));
 				break;
 			}
@@ -315,7 +345,8 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 			memset(m, 0, sizeof(m));
 			uvlong remain = ( uvlong ) (eos - p);
 			int    ok     = regexec9(c->re, p, remain, m, 64);
-			if (ok <= 0) {
+			if (ok < 0) return -1;
+			if (ok == 0) {
 				break;
 			}
 			if (m [0].s.sp == m [0].e.ep) {
@@ -336,6 +367,10 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 
 				slitr mtx = mkslitr(m [0].s.sp, ( uvlong ) (m [0].e.ep - m [0].s.sp));
 				int   sub = mkstrand(arena);
+				if (sub < 0) {
+					free(merged);
+					return -1;
+				}
 				Resub *child_caps = null;
 				int    child_ncap = 0;
 				int   ret = step(ca, nc, idx + 1, mtx, sub, merged, nmerged, arena, &child_caps, &child_ncap);
@@ -361,6 +396,7 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 				slitr gap = mkslitr(p, ( uvlong ) (m [0].s.sp - p));
 				if (gap.len > 0) {
 					int   sub = mkstrand(arena);
+					if (sub < 0) return -1;
 					Resub *child_caps = null;
 					int    child_ncap = 0;
 					int   ret = step(ca, nc, idx + 1, gap, sub, caps, ncap, arena, &child_caps, &child_ncap);
@@ -380,6 +416,7 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 		if (c->type == CT_Y && p < eos) {
 			slitr trail = mkslitr(p, ( uvlong ) (eos - p));
 			int   sub   = mkstrand(arena);
+			if (sub < 0) return -1;
 			Resub *child_caps = null;
 			int    child_ncap = 0;
 			int   ret   = step(ca, nc, idx + 1, trail, sub, caps, ncap, arena, &child_caps, &child_ncap);
@@ -425,6 +462,7 @@ static int exec_from(Cmd *ca, int nc, int start, slitr in, int out, Resub *caps,
 		cur_caps = calloc(( size_t ) ncap, sizeof(Resub));
 		if (!cur_caps) {
 			rmstrand(cur_sd);
+			errmsg("sttregex: capture allocation failed");
 			return -1;
 		}
 		memcpy(cur_caps, caps, ( size_t ) ncap * sizeof(Resub));
@@ -433,6 +471,11 @@ static int exec_from(Cmd *ca, int nc, int start, slitr in, int out, Resub *caps,
 
 	while (idx >= 0 && idx < nc) {
 		int   nxt_sd = mkstrand(arena);
+		if (nxt_sd < 0) {
+			rmstrand(cur_sd);
+			free(cur_caps);
+			return -1;
+		}
 		slitr cur    = obslitr(cur_sd);
 		Resub *next_caps = null;
 		int    next_ncap = 0;
@@ -471,8 +514,10 @@ int sttregex(int arena, char *str, char *se) {
 	errmsg(null);
 
 	int  nc = 0;
-	Cmd *ca = parse(arena, se, &nc);
+	bool fatal = false;
+	Cmd *ca = parse(arena, se, &nc, &fatal);
 	if (!ca) {
+		if (fatal) return -1;
 		int sd = mkstrand(arena);
 		if (sd >= 0) concat(sd, str);
 		return sd;

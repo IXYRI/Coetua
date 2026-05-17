@@ -13,6 +13,11 @@ static int failures = 0;
 	}                                       \
 	while (0)
 
+static void check_expected_error(bool ok, char *label) {
+	CHECK(ok && err(), label);
+	errmsg(null);
+}
+
 static bool keyeq(uvlong *f, char *s) { return f [0] == strlen(s) && memcmp(( void * ) f [1], s, f [0]) == 0; }
 
 int         main(void) {
@@ -28,6 +33,7 @@ int         main(void) {
 	CHECK(next(it, &v) && v == 20, "sequence iterator second");
 	CHECK(next(it, &v) && v == 30, "sequence iterator third");
 	CHECK(!next(it, &v), "sequence iterator exhausted");
+	CHECK(!err(), "sequence iterator exhaustion is quiet");
 	CHECK(slen(seq) == 3, "read-only iterator preserves sequence");
 	rmiter(it);
 	rmseq(seq);
@@ -130,6 +136,7 @@ int         main(void) {
 	it = mkoter(seq);
 	CHECK(it >= 0 && next(it, &v) && v == 10, "obliterating iterator removes sequence head");
 	CHECK(!next(hold, &v), "ordinary iterator invalidated by other obliterator");
+	CHECK(!err(), "ordinary iterator invalidation is quiet");
 	rmiter(hold);
 	rmiter(it);
 	rmseq(seq);
@@ -233,11 +240,15 @@ int         main(void) {
 	rmset(set);
 
 	rmiter(-1);
-	CHECK(mkiter(-1) < 0, "mkiter rejects invalid descriptor");
-	errmsg(null);
-	CHECK(mkoter(-1) < 0, "mkoter rejects invalid descriptor");
-	errmsg(null);
-	CHECK(!next(-1, &v), "invalid iterator is safely exhausted");
+	check_expected_error(mkiter(-1) < 0, "mkiter rejects invalid descriptor");
+	check_expected_error(mkoter(-1) < 0, "mkoter rejects invalid descriptor");
+	check_expected_error(!next(-1, &v), "invalid iterator sets error");
+	seq = mkseq(0);
+	it  = mkiter(seq);
+	CHECK(it >= 0, "mkiter for null output error");
+	check_expected_error(!next(it, null), "next null output sets error");
+	rmiter(it);
+	rmseq(seq);
 
 	printf("\n=== result: %d failures ===\n", failures);
 	return failures;

@@ -131,6 +131,11 @@ static void parser_edges(void) {
 	expect_stt_error("abc", "x/abc", "abc", "unterminated regex field reports error");
 	expect_stt_error("abc", "c/abc", "abc", "unterminated text field reports error");
 	expect_stt_error("abc", "q", "abc", "unknown command reports error");
+	errmsg(null);
+	CHECK(sttregex(0, null, "p") < 0 && err(), "null input reports error");
+	errmsg(null);
+	CHECK(sttregex(0, "abc", null) < 0 && err(), "null script reports error");
+	errmsg(null);
 }
 
 int main(void) {

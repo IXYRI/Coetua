@@ -677,19 +677,7 @@ static bool materialize_silo(int d, xbuf *out) {
 }
 
 static bool materialize_product(xprod p, xbuf *out) {
-	if (materialize_silo(p.d, out)) return true;
-	out->type = xrtarrst;
-	if (p.a.x && p.a.len) {
-		uvlong n  = p.a.len / sizeof(uvlong);
-		out->type = xrtuvlong;
-		if (p.a.len % sizeof(uvlong) != 0) out->type = xrtarrst;
-		if (out->type == xrtuvlong) {
-			for (uvlong i = 0; i < n; i++)
-				if (!xbuf_append(out, ( uchar * ) p.a.x + i * sizeof(uvlong))) return false;
-			return true;
-		}
-	}
-	return xbuf_append(out, &p.a);
+	return materialize_silo(p.d, out);
 }
 
 static bool eval_source(xp_t *xp, int sd, xbind *bs, int nbind, xbuf *mats);
@@ -1374,7 +1362,7 @@ static bool product_from_item(xrslt type, arrst item, xprod *out) {
 	case xrtrune   : out->r = *( rune * ) item.x; return true;
 	case xrtarrst  : out->a = *( arrst * ) item.x; return true;
 	case xrtpair   : out->p = *( pair * ) item.x; return true;
-	default        : return false;
+	default        : errmsg("xpedt: bad result type"); return false;
 	}
 }
 
@@ -1524,7 +1512,10 @@ void xcalleach(int xpedt, void (*fn)(xprod *out, void *), void *args, ...) {
 
 void xrun(int xpedt) {
 	xp_t *xp = xp_get(xpedt);
-	if (!xp) return;
+	if (!xp) {
+		errmsg("xrun: bad xpedt");
+		return;
+	}
 	for (int i = 0; i < xp->njob; i++) {
 		xjob *j = &xp->jobs [i];
 		if (j->kind == xjob_calleach) {

@@ -14,7 +14,10 @@ static uvlong htab_data_cap(uint used) { return used > 256 ? ( uvlong ) used : 2
 
 static bool   htab_data_want(uint used, uint needed, uint *out) {
 	uint want = used + needed;
-	if (want < used) return false;
+	if (want < used) {
+		errmsg("htab: data size overflow");
+		return false;
+	}
 	*out = want;
 	return true;
 }

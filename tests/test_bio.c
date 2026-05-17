@@ -629,6 +629,17 @@ static void buffered_line_helpers(void) {
 	rmbio(bd);
 }
 
+static void buffered_error_edges(void) {
+	heading("error edges");
+	binit(-1, -1, (omode) {.r = 1});
+	check_expected_error(true, "binit bad descriptor sets error");
+	check_expected_error(bfildes(-1) < 0, "bfildes bad descriptor sets error");
+	check_expected_error(bbuffered(-1) == 0, "bbuffered bad descriptor sets error");
+	bflush(-1);
+	check_expected_error(true, "bflush bad descriptor sets error");
+	check_expected_error(brdstr(-1, 0, '\n', false) < 0, "brdstr bad descriptor sets error");
+}
+
 int main(void) {
 	cleanup_files();
 
@@ -643,6 +654,7 @@ int main(void) {
 	buffered_char_helpers();
 	buffered_rune_helpers();
 	buffered_line_helpers();
+	buffered_error_edges();
 
 	printf("\n=== result: %d failures ===\n", failures);
 	cleanup_files();

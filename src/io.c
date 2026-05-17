@@ -196,7 +196,7 @@ static bool offset_in_range(uvlong offset, char *rangeerr) {
 
 static bool restore_offset(int fd, vlong saved, char *who) {
 	if (dseek(fd, saved, 0) >= 0) return true;
-	errmsg(who);
+	if (!err()) errmsg(who);
 	return false;
 }
 
@@ -208,7 +208,7 @@ vlong pread(int fd, void *buf, uvlong len, uvlong offset) {
 	if (len == 0) return 0;
 	vlong saved = dseek(fd, 0, 1);
 	if (saved < 0) {
-		errmsg("pread: bad fd");
+		if (!err()) errmsg("pread: bad fd");
 		return -1;
 	}
 	if (!offset_in_range(offset, "pread: offset out of range")) return -1;
@@ -234,7 +234,7 @@ vlong pwrite(int fd, void *buf, uvlong len, uvlong offset) {
 	}
 	vlong saved = dseek(fd, 0, 1);
 	if (saved < 0) {
-		errmsg("pwrite: bad fd");
+		if (!err()) errmsg("pwrite: bad fd");
 		return -1;
 	}
 	if (!offset_in_range(offset, "pwrite: offset out of range")) return -1;

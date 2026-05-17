@@ -1,6 +1,7 @@
 #include "regex9.h"
 #include "err.h"
 #include "text.h"
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -41,9 +42,23 @@ static void freelist(List *l) {
 static bool grow(List *l, uvlong need) {
 	if (l->cap >= need) return true;
 	uvlong ncap = l->cap ? l->cap * 2 : 16;
-	while (ncap < need) ncap *= 2;
+	while (ncap < need) {
+		uvlong next = ncap * 2;
+		if (next <= ncap) {
+			errmsg("regex allocation failed");
+			return false;
+		}
+		ncap = next;
+	}
+	if (ncap > ( uvlong ) (SIZE_MAX / sizeof(Thread))) {
+		errmsg("regex allocation failed");
+		return false;
+	}
 	Thread *nt = realloc(l->t, ( size_t ) (ncap * sizeof(Thread)));
-	if (!nt) return false;
+	if (!nt) {
+		errmsg("regex allocation failed");
+		return false;
+	}
 	l->t   = nt;
 	l->cap = ncap;
 	return true;
@@ -58,7 +73,7 @@ static bool seen(List *l, Reinst *i, Resub *cap, int ms) {
 static Resub *copycaps(Resub *src, int ms) {
 	if (ms <= 0) return null;
 	Resub *dst = calloc(( size_t ) ms, sizeof(Resub));
-	if (!dst) return null;
+	if (!dst) errmsg("regex allocation failed");
 	if (src) memcpy(dst, src, ( size_t ) ms * sizeof(Resub));
 	return dst;
 }
@@ -66,6 +81,7 @@ static Resub *copycaps(Resub *src, int ms) {
 static uvlong *copycnt(uvlong *src, uvlong nc) {
 	if (!nc) return null;
 	uvlong *dst = calloc(( size_t ) nc, sizeof(uvlong));
+	if (!dst) errmsg("regex allocation failed");
 	if (dst && src) memcpy(dst, src, ( size_t ) nc * sizeof(uvlong));
 	return dst;
 }
@@ -354,5 +370,6 @@ fail:
 	freelist(&clist);
 	freelist(&nlist);
 	free(best);
-	return errmsg("regex execution failed"), -1;
+	if (!err()) errmsg("regex execution failed");
+	return -1;
 }

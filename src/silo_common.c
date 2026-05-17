@@ -1,6 +1,27 @@
 #include "silo_priv.h"
 #include "arena.h"
+#include "err.h"
 #include <string.h>
+
+static uchar empty_field;
+
+static bool bad_fields(uvlong *p, bool ismap, char *who) {
+	if (!p) {
+		errmsg(who);
+		return true;
+	}
+	if (!p [1] && p [0] > 0) {
+		errmsg(who);
+		return true;
+	}
+	if (ismap && !p [3] && p [2] > 0) {
+		errmsg(who);
+		return true;
+	}
+	return false;
+}
+
+static void *field_ptr(uvlong len, uvlong ptr) { return ptr ? ( void * ) ptr : len == 0 ? &empty_field : null; }
 
 static void copy_linear_data(silo_t *src, uvlong *dst) {
 	if (src->type == silo_queue) {
@@ -34,21 +55,23 @@ static void htab_write_fields(htab_t *t, uvlong idx, uvlong **out) {
 	*out = p;
 }
 
-static void htab_insert_fields(int desc, bool ismap, uvlong **in) {
+static bool htab_insert_fields(int desc, bool ismap, uvlong **in) {
 	uvlong *p     = *in;
+	if (bad_fields(p, ismap, "silo fields: bad data")) return false;
 	uint    klen  = ( uint ) p [0];
-	void   *key   = ( void * ) p [1];
+	void   *key   = field_ptr(p [0], p [1]);
 	p            += 2;
 	if (!ismap) {
 		adds(desc, key, klen);
 		*in = p;
-		return;
+		return !err();
 	}
 	uint  vlen  = ( uint ) p [0];
-	void *val   = ( void * ) p [1];
+	void *val   = field_ptr(p [0], p [1]);
 	p          += 2;
 	insert(desc, key, klen, val, vlen);
 	*in = p;
+	return !err();
 }
 
 static int htab_new_same_kind(htab_t *t, int arena) {
@@ -63,6 +86,7 @@ static void htab_copy_entries(int dst, htab_t *src) {
 		if (src->ismap)
 			insert(dst, src->keys + src->koffs [i], src->klens [i], src->vals + src->voffs [i], src->vlens [i]);
 		else adds(dst, src->keys + src->koffs [i], src->klens [i]);
+		if (err()) return;
 	}
 }
 
@@ -79,7 +103,11 @@ static void htab_teem_desc(int desc) {
 
 uvlong cize(int desc) {
 	silo_t *s = silo_get(desc);
-	return s ? s->len : 0;
+	if (!s) {
+		errmsg("cize: bad linear silo");
+		return 0;
+	}
+	return s->len;
 }
 
 void teem(int desc) {
@@ -90,24 +118,42 @@ void teem(int desc) {
 		silo_touch(s);
 		return;
 	}
+	htab_t *t = htab_get(desc);
+	if (!t) {
+		errmsg("teem: bad silo");
+		return;
+	}
 	htab_teem_desc(desc);
 }
 
 uvlong carten(int desc) {
 	htab_t *t = htab_get(desc);
-	return t ? t->len : 0;
+	if (!t) {
+		errmsg("carten: bad hash silo");
+		return 0;
+	}
+	return t->len;
 }
 
 void compact(int desc) {
 	silo_t *s = silo_get(desc);
 	if (s) return;
 	htab_t *t = htab_get(desc);
-	if (t) htab_compact(t);
+	if (!t) {
+		errmsg("compact: bad silo");
+		return;
+	}
+	htab_compact(t);
 }
 
 void efflate(int desc, uvlong size) {
 	silo_t *s = silo_get(desc);
-	if (s) silo_grow(s, size);
+	if (s) {
+		silo_grow(s, size);
+		return;
+	}
+	if (htab_get(desc)) return;
+	errmsg("efflate: bad silo");
 }
 
 void tamp(int desc) {
@@ -115,7 +161,10 @@ void tamp(int desc) {
 	if (s) {
 		if (s->len == 0) return;
 		uvlong bytes;
-		if (!mulok64(s->len, sizeof(uvlong), &bytes)) return;
+		if (!mulok64(s->len, sizeof(uvlong), &bytes)) {
+			errmsg("tamp: size overflow");
+			return;
+		}
 		uvlong *newdata = ( uvlong * ) aden(s->arena, bytes);
 		if (!newdata) return;
 		copy_linear_data(s, newdata);
@@ -126,7 +175,11 @@ void tamp(int desc) {
 		return;
 	}
 	htab_t *t = htab_get(desc);
-	if (t) htab_compact(t);
+	if (!t) {
+		errmsg("tamp: bad silo");
+		return;
+	}
+	htab_compact(t);
 }
 
 int replica(int arena, int desc) {
@@ -147,8 +200,10 @@ int replica(int arena, int desc) {
 		int nid = htab_new_same_kind(t, arena);
 		if (nid < 0) return -1;
 		htab_copy_entries(nid, t);
+		if (err()) return -1;
 		return nid;
 	}
+	errmsg("replica: bad silo");
 	return -1;
 }
 
@@ -206,10 +261,11 @@ static bool linear_spew_one(int desc, silo_t *s, uvlong *out) {
 }
 
 static void swop_setlike(int desc, htab_t *t, uvlong idx, uvlong *fields) {
+	if (bad_fields(fields, false, "swop: bad data")) return;
 	uint   tmp_klen = t->klens [idx];
 	uchar *tmp_key  = t->keys + t->koffs [idx];
 	uint   in_klen  = ( uint ) fields [0];
-	uchar *in_key   = ( uchar * ) fields [1];
+	uchar *in_key   = field_ptr(fields [0], fields [1]);
 	htab_delete_slot(t, idx);
 	adds(desc, in_key, in_klen);
 	fields [0] = tmp_klen;
@@ -217,14 +273,15 @@ static void swop_setlike(int desc, htab_t *t, uvlong idx, uvlong *fields) {
 }
 
 static void swop_maplike(int desc, htab_t *t, uvlong idx, uvlong *fields) {
+	if (bad_fields(fields, true, "swop: bad data")) return;
 	uint   tmp_klen = t->klens [idx];
 	uchar *tmp_key  = t->keys + t->koffs [idx];
 	uint   tmp_vlen = t->vlens [idx];
 	uchar *tmp_val  = t->vals + t->voffs [idx];
 	uint   in_klen  = ( uint ) fields [0];
-	uchar *in_key   = ( uchar * ) fields [1];
+	uchar *in_key   = field_ptr(fields [0], fields [1]);
 	uint   in_vlen  = ( uint ) fields [2];
-	uchar *in_val   = ( uchar * ) fields [3];
+	uchar *in_val   = field_ptr(fields [2], fields [3]);
 	htab_delete_slot(t, idx);
 	insert(desc, in_key, in_klen, in_val, in_vlen);
 	fields [0] = tmp_klen;
@@ -234,7 +291,10 @@ static void swop_maplike(int desc, htab_t *t, uvlong idx, uvlong *fields) {
 }
 
 void swop(int desc, void *data) {
-	if (!data) return;
+	if (!data) {
+		errmsg("swop: bad data");
+		return;
+	}
 	silo_t *s = silo_get(desc);
 	if (s) {
 		silo_swop_linear(s, data);
@@ -242,9 +302,13 @@ void swop(int desc, void *data) {
 	}
 
 	htab_t *t = htab_get(desc);
-	if (!t) return;
+	if (!t) {
+		errmsg("swop: bad silo");
+		return;
+	}
 
 	uvlong *fields = ( uvlong * ) data;
+	if (bad_fields(fields, t->ismap, "swop: bad data")) return;
 	uvlong  idx    = first_live_slot(t);
 	if (idx < t->cap) {
 		if (!t->ismap) swop_setlike(desc, t, idx, fields);
@@ -255,21 +319,35 @@ void swop(int desc, void *data) {
 }
 
 void cram(int desc, uvlong *data, uvlong n) {
-	if (!data || n == 0) return;
+	if (!data) {
+		if (n == 0) return;
+		errmsg("cram: bad data");
+		return;
+	}
+	if (n == 0) return;
 	silo_t *s = silo_get(desc);
 	if (s) {
 		if (s->type != silo_stack && s->type != silo_seq && s->type != silo_queue) return;
-		for (uvlong i = 0; i < n; i++) linear_cram_one(desc, s, data [i]);
+		for (uvlong i = 0; i < n && !err(); i++) linear_cram_one(desc, s, data [i]);
 		return;
 	}
 	htab_t *t = htab_get(desc);
-	if (!t) return;
+	if (!t) {
+		errmsg("cram: bad silo");
+		return;
+	}
 	uvlong *p = data;
-	for (uvlong i = 0; i < n; i++) htab_insert_fields(desc, t->ismap, &p);
+	for (uvlong i = 0; i < n; i++)
+		if (!htab_insert_fields(desc, t->ismap, &p)) return;
 }
 
 uvlong spew(int desc, uvlong *buf, uvlong n) {
-	if (!buf || n == 0) return 0;
+	if (!buf) {
+		if (n == 0) return 0;
+		errmsg("spew: bad buffer");
+		return 0;
+	}
+	if (n == 0) return 0;
 	silo_t *s = silo_get(desc);
 	if (s) {
 		uvlong i;
@@ -279,7 +357,10 @@ uvlong spew(int desc, uvlong *buf, uvlong n) {
 	}
 
 	htab_t *t = htab_get(desc);
-	if (!t) return 0;
+	if (!t) {
+		errmsg("spew: bad silo");
+		return 0;
+	}
 	uvlong  taken = 0;
 	uvlong *p     = buf;
 	for (uvlong i = 0; i < t->cap && taken < n; i++) {
@@ -303,5 +384,6 @@ int silotype_of(int desc) {
 	}
 	htab_t *t = htab_get(desc);
 	if (t) return t->ismultiset ? ( int ) silo_multiset : t->ismap ? ( int ) silo_map : ( int ) silo_set;
+	errmsg("silotype_of: bad silo");
 	return 0;
 }

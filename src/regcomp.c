@@ -3,6 +3,7 @@
 #include "err.h"
 #include "text.h"
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -62,7 +63,12 @@ typedef struct Parser {
 static bool grow(void **p, uvlong *cap, uvlong need, uvlong sz) {
 	if (*cap >= need) return true;
 	uvlong ncap = *cap ? *cap * 2 : 16;
-	while (ncap < need) ncap *= 2;
+	while (ncap < need) {
+		uvlong next = ncap * 2;
+		if (next <= ncap) return errmsg("regex allocation failed"), false;
+		ncap = next;
+	}
+	if (sz && ncap > ( uvlong ) (SIZE_MAX / sz)) return errmsg("regex allocation failed"), false;
 	void *np = realloc(*p, ( size_t ) (ncap * sz));
 	if (!np) return errmsg("regex allocation failed"), false;
 	*p   = np;
@@ -539,11 +545,18 @@ Reprog *regcomp9(int arena, char *pattern) {
 	if (!pattern) return errmsg("null regex pattern"), null;
 	errmsg(null);
 	uvlong  plen     = strlen(pattern);
-	uvlong  maxinst  = plen * 8 + 16;
-	uvlong  maxclass = plen + 1;
-	uvlong  bytes    = sizeof(Reprog) + maxinst * sizeof(Reinst) + maxclass * sizeof(Reclass);
+	uvlong  maxinst, maxclass, instbytes, classbytes, tailbytes, bytes;
+	if (!mulok64(plen, 8, &maxinst) || !addok64(maxinst, 16, &maxinst) || !addok64(plen, 1, &maxclass)
+	    || !mulok64(maxinst, sizeof(Reinst), &instbytes) || !mulok64(maxclass, sizeof(Reclass), &classbytes)
+	    || !addok64(instbytes, classbytes, &tailbytes) || !addok64(sizeof(Reprog), tailbytes, &bytes)) {
+		errmsg("regex program too large");
+		return null;
+	}
 	Reprog *prog     = aden(arena, bytes);
-	if (!prog) return errmsg("regex allocation failed"), null;
+	if (!prog) {
+		if (!err()) errmsg("regex allocation failed");
+		return null;
+	}
 	memset(prog, 0, ( size_t ) bytes);
 	Parser p = {0};
 	p.p      = pattern;

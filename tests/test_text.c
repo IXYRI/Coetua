@@ -18,6 +18,11 @@ static void slitr_is(slitr got, char *want, char *label) { CHECK(slitreq(got, sl
 
 static void strand_is(int strand, char *want, char *label) { slitr_is(obslitr(strand), want, label); }
 
+static void check_expected_error(bool ok, char *label) {
+	CHECK(ok && err(), label);
+	errmsg(null);
+}
+
 static void rune_seq_is(int seq, rune *want, uvlong n, char *label) {
 	bool ok = seq >= 0 && slen(seq) == n;
 	for (uvlong i = 0; ok && i < n; i++) ok = pick(seq, ( vlong ) i) == want [i];
@@ -106,6 +111,29 @@ static void strand_spec(void) {
 	CHECK(live_ok, "strand descriptors grow past configured seed cap");
 	for (int i = 0; i < COETUA_STRAND_TABLE_SEED + 20; i++)
 		if (live [i] >= 0) rmstrand(live [i]);
+}
+
+static void strand_error_spec(void) {
+	printf("\n=== strand errors ===\n");
+	check_expected_error(obslitr(-1).len == 0, "obslitr bad strand sets error");
+	concats(-1, slitr_of("x"));
+	check_expected_error(true, "concats bad strand sets error");
+	putstr(-1, 0, "x");
+	check_expected_error(true, "putstr bad strand sets error");
+	dropstr(-1, 0, 1);
+	check_expected_error(true, "dropstr bad strand sets error");
+	repeat(-1, 2);
+	check_expected_error(true, "repeat bad strand sets error");
+	concat(-1, null);
+	CHECK(!err(), "concat null remains quiet");
+
+	int st = mkstrand(0);
+	CHECK(st >= 0, "mkstrand for quiet edge cases");
+	putstr(st, 99, "x");
+	dropstr(st, 99, 1);
+	concats(st, slitr_empty());
+	CHECK(obslitr(st).len == 0 && !err(), "empty/out-of-range strand operations stay quiet");
+	rmstrand(st);
 }
 
 static void strand_helper_spec(void) {
@@ -304,6 +332,7 @@ static void token_spec(void) {
 int main(void) {
 	slitr_spec();
 	strand_spec();
+	strand_error_spec();
 	strand_helper_spec();
 	rune_spec();
 	utf_boundary_spec();

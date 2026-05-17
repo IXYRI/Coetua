@@ -13,6 +13,11 @@ static int failures = 0;
 	}                                       \
 	while (0)
 
+static void check_expected_error(bool ok, char *label) {
+	CHECK(ok && err(), label);
+	errmsg(null);
+}
+
 static bool field_eq(uvlong *f, char *s) { return f [0] == strlen(s) && memcmp(( void * ) f [1], s, f [0]) == 0; }
 
 int         main(void) {
@@ -34,7 +39,9 @@ int         main(void) {
 	adds(set, "x", 1);
 	CHECK(peep(stk) == 7 && mems(set, "x", 1), "linear and hash tables operate independently");
 	adds(stk, "bad", 3);
+	check_expected_error(true, "adds rejects wrong-family descriptor");
 	push(set, 99);
+	check_expected_error(true, "push rejects wrong-family descriptor");
 	CHECK(peep(stk) == 7 && !mems(set, "bad", 3), "wrong-family handlers reject encoded descriptors");
 	rmstack(stk);
 	rmqueue(que);
@@ -196,13 +203,17 @@ int         main(void) {
 	rmseq(iter_src);
 	CHECK(live_ok, "iterator descriptors grow past configured seed cap");
 
-	printf("\n=== common silo: invalid descriptor no-op ===\n");
-	CHECK(cize(-1) == 0, "cize invalid descriptor returns 0");
-	CHECK(carten(-1) == 0, "carten invalid descriptor returns 0");
+	printf("\n=== common silo: invalid descriptor errors ===\n");
+	check_expected_error(cize(-1) == 0, "cize invalid descriptor sets error");
+	check_expected_error(carten(-1) == 0, "carten invalid descriptor sets error");
 	teem(-1);
+	check_expected_error(true, "teem invalid descriptor sets error");
 	efflate(-1, 32);
+	check_expected_error(true, "efflate invalid descriptor sets error");
 	tamp(-1);
-	CHECK(replica(0, -1) < 0, "replica invalid descriptor fails");
+	check_expected_error(true, "tamp invalid descriptor sets error");
+	check_expected_error(replica(0, -1) < 0, "replica invalid descriptor fails");
+	check_expected_error(silotype_of(-1) == 0, "silotype_of invalid descriptor sets error");
 
 	printf("\n=== common silo: swop/cram/spew helpers ===\n");
 	int    lin      = mkseq(0);
@@ -215,6 +226,7 @@ int         main(void) {
 	uvlong out [4] = {0};
 	CHECK(spew(lin, out, 2) == 2 && out [0] == 1 && out [1] == 2, "spew sequence drains from front");
 	CHECK(slen(lin) == 1 && pick(lin, 0) == 9, "spew sequence removes drained values");
+	CHECK(spew(lin, out, 8) == 1 && !err(), "spew short linear source is quiet");
 	rmseq(lin);
 
 	set                = mkset(0);
@@ -250,6 +262,26 @@ int         main(void) {
 	CHECK(spew(map, mapout, 1) == 1 && mapout [0] == 2 && mapout [2] == 2, "spew map returns one key/value quad");
 	CHECK(carten(map) == 0, "spew map removes returned pair");
 	rmmap(map);
+
+	printf("\n=== common silo: helper errors ===\n");
+	stk = mkstack(0);
+	que = mkqueue(0);
+	check_expected_error(pop(stk) == 0, "pop empty stack sets error");
+	check_expected_error(peep(stk) == 0, "peep empty stack sets error");
+	check_expected_error(dequeue(que) == 0, "dequeue empty queue sets error");
+	check_expected_error(peekq(que) == 0, "peekq empty queue sets error");
+	push(-1, 1);
+	check_expected_error(true, "push invalid descriptor sets error");
+	enqueue(-1, 1);
+	check_expected_error(true, "enqueue invalid descriptor sets error");
+	swop(stk, null);
+	check_expected_error(true, "swop null data sets error");
+	cram(stk, null, 1);
+	check_expected_error(true, "cram null nonzero data sets error");
+	CHECK(!err() && spew(stk, null, 0) == 0, "spew null zero buffer is quiet");
+	check_expected_error(spew(stk, null, 1) == 0, "spew null nonzero buffer sets error");
+	rmstack(stk);
+	rmqueue(que);
 
 	printf("\n=== result: %d failures ===\n", failures);
 	return failures;

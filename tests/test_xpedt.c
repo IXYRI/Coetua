@@ -598,6 +598,11 @@ static void invalid_inputs(void) {
 	mold(xp, a, silo_seq);
 	xcall(xp, null, null, (xprod) {.d = seq_of(&factor, 1)});
 	check_expected_error(true, "xcall rejects null callback");
+	xprod out = {0};
+	xact(xp, &out, (xprod) {.d = -123});
+	check_expected_error(true, "xact rejects bad input silo descriptor");
+	xrun(-1);
+	check_expected_error(true, "xrun bad descriptor sets error");
 	rmxpedt(xp);
 }
 
