@@ -367,19 +367,21 @@ uvlong skupper(int skip, uvlong chet, int (*cmp)(uvlong yod, uvlong chet, void *
 	return first_after(sk, chet, cmp, arg, true);
 }
 
-uvlong skfind(int skip, uvlong chet, int (*cmp)(uvlong yod, uvlong chet, void *arg), void *arg) {
+bool skfind(int skip, uvlong chet, int (*cmp)(uvlong yod, uvlong chet, void *arg), void *arg, uvlong *pin) {
 	skip_t *sk = sk_get(skip);
 	if (!sk || !cmp) {
 		errmsg("skfind: bad argument");
-		return SKNONE;
+		return false;
 	}
-	uvlong pin = first_after(sk, chet, cmp, arg, false);
-	if (err()) return SKNONE;
-	if (cmp(sk->pins [pin].yod, chet, arg) != 0) {
-		errmsg("skfind: no pin");
-		return SKNONE;
-	}
-	return pin;
+	uvlong upre [SKMAXLAYER] = {0};
+	uvlong uat [SKMAXLAYER]  = {0};
+	find_update(sk, chet, cmp, arg, false, upre, uat);
+	uvlong k = lsstep(upre [0], uat [0]);
+	if (!k) return false;
+	uvlong found = lsyod(k);
+	if (cmp(sk->pins [found].yod, chet, arg) != 0) return false;
+	if (pin) *pin = found;
+	return true;
 }
 
 uvlong skfirst(int skip) {

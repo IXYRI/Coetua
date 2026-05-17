@@ -57,10 +57,12 @@ static void find_bounds_and_adjacency(void) {
 	uvlong p4 = skput(sk, 4, cmp_uv, null);
 	uvlong p6 = skput(sk, 6, cmp_uv, null);
 	uvlong p8 = skput(sk, 8, cmp_uv, null);
-	CHECK(skfind(sk, 4, cmp_uv, null) == p4, "skfind returns equal pin");
+	uvlong found = 99;
+	CHECK(skfind(sk, 4, cmp_uv, null, &found) && found == p4, "skfind returns equal pin");
+	CHECK(skfind(sk, 4, cmp_uv, null, null), "skfind accepts null output as existence check");
 	CHECK(sklower(sk, 5, cmp_uv, null) == p6, "sklower returns first greater when no equal");
 	CHECK(skupper(sk, 6, cmp_uv, null) == p8, "skupper returns first strictly greater");
-	check_expected_error(skfind(sk, 5, cmp_uv, null) == ( uvlong ) -1, "skfind no result sets error");
+	CHECK(!skfind(sk, 5, cmp_uv, null, &found) && found == p4 && !err(), "skfind miss is quiet false");
 	check_expected_error(sklower(sk, 9, cmp_uv, null) == ( uvlong ) -1, "sklower no result sets error");
 	check_expected_error(skupper(sk, 8, cmp_uv, null) == ( uvlong ) -1, "skupper no result sets error");
 	uvlong out = 99;
@@ -136,7 +138,7 @@ static void invalid_inputs(void) {
 	check_expected_error(!sknext(sk, 99, null), "sknext bad pin sets error");
 	check_expected_error(!skprev(sk, 99, null), "skprev bad pin sets error");
 	check_expected_error(skpins(sk, null, 1) == 0, "skpins null nonzero buffer sets error");
-	check_expected_error(skfind(sk, 1, null, null) == ( uvlong ) -1, "skfind null comparator sets error");
+	check_expected_error(!skfind(sk, 1, null, null, null), "skfind null comparator sets error");
 	check_expected_error(sklower(-1, 1, cmp_uv, null) == ( uvlong ) -1, "sklower invalid descriptor sets error");
 	check_expected_error(skupper(sk, 1, null, null) == ( uvlong ) -1, "skupper null comparator sets error");
 	check_expected_error(skdels(sk, 99, cmp_uv, null) == 0, "skdels bad pin sets error");

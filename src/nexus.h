@@ -233,6 +233,86 @@ void   lssplice(uvlong atpre, uvlong at, bead b);
 void   rmlist(int arena, uvlong u, uvlong v);
 
 /* ═══════════════════════════════════════════════════════
+   Bitree — descriptorless binary tree topology.
+   A bitree owns shape only.  Knods are arena-allocated records with parent,
+   caller-owned uvlong ref, and two child slots.  Public knod handles are knod
+   addresses cast to uvlong; 0 is null.  There is no tree descriptor, root
+   record, edge ref, validity registry, or tombstone table.  Invalid nonzero
+   handles are fail-fast undefined behavior.
+
+   kids[0] is zero and kids[1] is one.  Callers own current root handles.
+   Operations that change a subtree root return the new or detached handle.
+
+   rbtkids batch-creates zero/one children: a non-null input pointer contains
+   the child ref and is overwritten with the new child handle on success.
+   Null side pointers are skipped.  btkids uses optional output pointers in
+   the same style.  btdrop detaches par->kids[side]; dropping an empty slot is
+   a quiet empty result.  btplace places a nonzero detached kid and returns the
+   replaced child if any.  rmbitree clears the subtree rooted at root; if root
+   has a parent, the parent's corresponding child slot is cleared first.
+
+   btside returns false for zero and true for one.  Root/detached knods return
+   false and set errmsg(); other side-query errors return true and set errmsg().
+   btrot promotes the child on side.  btrrotte rotates the child on second by
+   first, then rotates the knod by second.
+
+   btwalk enumerates knod handles with order 0 preorder, 1 inorder, 2
+   postorder, and 3 level order.  It uses the count/cap/null-buffer convention.
+   ═══════════════════════════════════════════════════════ */
+
+uvlong mkbitree(int arena, uvlong ref);
+void   rmbitree(uvlong root);
+uvlong btref(uvlong knod);
+void   rbtref(uvlong knod, uvlong ref);
+uvlong btpar(uvlong knod);
+bool   btside(uvlong knod);
+void   btkids(uvlong knod, uvlong *zero, uvlong *one);
+void   rbtkids(int arena, uvlong knod, uvlong *zero, uvlong *one);
+uvlong btdrop(uvlong par, int side);
+uvlong btplace(uvlong par, int side, uvlong kid);
+uvlong btrot(uvlong knod, int side);
+uvlong btrrotte(uvlong knod, int first, int second);
+uvlong btwalk(uvlong root, int order, uvlong *buf, uvlong cap);
+
+/* ═══════════════════════════════════════════════════════
+   Indeltree — ordered stateful topology descriptors.
+   An indeltree owns ordered red-black tree shape only.  Knods store
+   caller-owned uvlong refs; ordering is supplied per operation by a comparator
+   over ref-domain values.  Public knod ids are opaque encoded handles and are
+   not bitree handles.  Callers must not inspect or mutate tree shape.
+
+   Duplicates are allowed.  inplace always creates a new knod and inserts it
+   after existing equals in inorder order.  infind returns the first equal knod;
+   exact miss is a quiet false result.  inlower returns the first knod >= chet
+   and inupper returns the first knod > chet; no such bound is an error.
+
+   infirst/inlast return ordered ends; empty trees are errors.  innext/inprev
+   return false without error at ordered endpoints and silently skip a null
+   output pointer.  indrop deletes one live knod by identity.  indels keeps the
+   first exceed equal knods for chet and deletes the rest, returning the deleted
+   count; no equal range is a quiet zero result.
+
+   inknods enumerates live knod ids in inorder with the count/cap/null-buffer
+   convention.
+   ═══════════════════════════════════════════════════════ */
+
+int    mkindeltree(int arena);
+void   rmindeltree(int tree);
+uvlong inplace(int tree, uvlong ref, int (*cmp)(uvlong ref, uvlong chet, void *arg), void *arg);
+bool   indrop(int tree, uvlong knod);
+uvlong indels(int tree, uvlong chet, uvlong exceed, int (*cmp)(uvlong ref, uvlong chet, void *arg), void *arg);
+uvlong inref(int tree, uvlong knod);
+uvlong innknod(int tree);
+uvlong inknods(int tree, uvlong *buf, uvlong cap);
+bool   infind(int tree, uvlong chet, int (*cmp)(uvlong ref, uvlong chet, void *arg), void *arg, uvlong *knod);
+uvlong inlower(int tree, uvlong chet, int (*cmp)(uvlong ref, uvlong chet, void *arg), void *arg);
+uvlong inupper(int tree, uvlong chet, int (*cmp)(uvlong ref, uvlong chet, void *arg), void *arg);
+uvlong infirst(int tree);
+uvlong inlast(int tree);
+bool   innext(int tree, uvlong knod, uvlong *next);
+bool   inprev(int tree, uvlong knod, uvlong *prev);
+
+/* ═══════════════════════════════════════════════════════
    Skiplist — ordered randomized skiplist topology descriptors.
    A skiplist owns shape only.  Pins are ordered elements with caller-owned
    uvlong yods.  Ordering is supplied per operation by a comparator over yod
@@ -247,8 +327,8 @@ void   rmlist(int arena, uvlong u, uvlong v);
    public API.
 
    skput inserts after existing equals and returns the new pin.  skfind returns
-   the first equal pin; sklower returns the first pin >= chet; skupper returns
-   the first pin > chet.  No result sets errmsg().
+   false quietly on exact miss.  sklower returns the first pin >= chet; skupper
+   returns the first pin > chet.
 
    skfirst/sklast return the ordered first/last pin; empty skiplists are errors.
    sknext/skprev return false without error at ordered ends and silently skip a
@@ -268,7 +348,7 @@ uvlong skdels(int skip, uvlong pin, int (*cmp)(uvlong yod, uvlong chet, void *ar
 uvlong skyod(int skip, uvlong pin);
 uvlong sknpin(int skip);
 uvlong skpins(int skip, uvlong *buf, uvlong cap);
-uvlong skfind(int skip, uvlong chet, int (*cmp)(uvlong yod, uvlong chet, void *arg), void *arg);
+bool   skfind(int skip, uvlong chet, int (*cmp)(uvlong yod, uvlong chet, void *arg), void *arg, uvlong *pin);
 uvlong sklower(int skip, uvlong chet, int (*cmp)(uvlong yod, uvlong chet, void *arg), void *arg);
 uvlong skupper(int skip, uvlong chet, int (*cmp)(uvlong yod, uvlong chet, void *arg), void *arg);
 uvlong skfirst(int skip);
