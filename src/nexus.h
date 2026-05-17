@@ -185,3 +185,49 @@ void   ltclear(int lattice);
 uvlong ltorth(int lattice, vlong x, vlong y, uvlong *buf, uvlong cap);
 uvlong ltsurr(int lattice, vlong x, vlong y, uvlong *buf, uvlong cap);
 uvlong ltphis(int lattice, ltcell *buf, uvlong cap);
+
+/* ═══════════════════════════════════════════════════════
+   List — descriptorless xor-linked topology.
+   A list owns shape only.  Knots are arena-allocated two-field records:
+   yod is the caller-owned uvlong ref and vav is xor adjacency.  Public knot
+   handles are knot addresses cast to uvlong; 0 is null.  There is no list
+   descriptor, head/tail record, link ref, or validity registry.  Invalid
+   nonzero knot handles are fail-fast undefined behavior.
+
+   bead describes a directed list segment.  pre is the outside predecessor
+   used to enter fst; pre is not part of the bead.  Walking with
+   lsstep(previous,current) from pre,fst visits knots through lst inclusive.
+
+   mklist batch-creates an independent list in an arena from yods[0..n) and
+   returns {0, first, last}.  n==0 returns the empty bead {0,0,0}.  Empty beads
+   are the identity for lscut(), lsput(), lscat(), and lssplice().
+
+   lsput inserts an independent bead after at in direction atpre -> at.
+   lscat finds the directional end first, then puts there.  lscut detaches a
+   bead from its surrounding component and returns it as independent.
+   lssplice is lscut followed by lsput.  rmlist enters through u,v (where
+   either may be 0) and clears the connected component by zeroing reached
+   knots; arena memory is reclaimed only by rmarena().
+
+   lsknots uses the count/cap/null-buffer convention.  lsend has an optional
+   endpre output pointer; null is silently skipped.
+   ═══════════════════════════════════════════════════════ */
+
+typedef struct bead {
+	uvlong pre;
+	uvlong fst;
+	uvlong lst;
+} bead;
+
+bead   mklist(int arena, uvlong *yods, uvlong n);
+uvlong lsyod(uvlong knot);
+void   rlsyod(uvlong knot, uvlong yod);
+uvlong lsstep(uvlong pre, uvlong knot);
+uvlong lsend(uvlong pre, uvlong knot, uvlong *endpre);
+uvlong lslen(uvlong pre, uvlong knot);
+uvlong lsknots(uvlong pre, uvlong knot, uvlong *buf, uvlong cap);
+bead   lscut(bead b);
+void   lsput(uvlong atpre, uvlong at, bead b);
+void   lscat(uvlong pre, uvlong knot, bead b);
+void   lssplice(uvlong atpre, uvlong at, bead b);
+void   rmlist(int arena, uvlong u, uvlong v);
