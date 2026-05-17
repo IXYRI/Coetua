@@ -44,7 +44,7 @@ void   atch(int seq, uvlong data);             /* append */
 void   place(int seq, vlong pos, uvlong data); /* insert/replace at pos */
 uvlong drop(int seq, vlong pos);               /* remove and return at pos */
 void   swap(int seq, vlong pa, vlong pb);      /* swap two positions */
-uvlong pick(int seq, vlong pos);               /* read at pos (bounds-checked, returns 0 on OOB) */
+uvlong pick(int seq, vlong pos);               /* read at pos */
 uvlong slen(int seq);                          /* number of elements */
 /* Return a borrowed pointer to a contiguous sequence span.  Invalidated
    by any later mutation of seq. */

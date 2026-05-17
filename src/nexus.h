@@ -231,3 +231,47 @@ void   lsput(uvlong atpre, uvlong at, bead b);
 void   lscat(uvlong pre, uvlong knot, bead b);
 void   lssplice(uvlong atpre, uvlong at, bead b);
 void   rmlist(int arena, uvlong u, uvlong v);
+
+/* ═══════════════════════════════════════════════════════
+   Skiplist — ordered randomized skiplist topology descriptors.
+   A skiplist owns shape only.  Pins are ordered elements with caller-owned
+   uvlong yods.  Ordering is supplied per operation by a comparator over yod
+   domain values; chet is the caller-provided comparison value.
+
+   Public pin ids are opaque unique identifiers.  Callers must not assume ids
+   are continuous, ordered, reused, or suitable for arithmetic.  Deletion leaves
+   tombstones; ids are not reused during the life of a skiplist descriptor.
+
+   Internally each layer is an xor list with one private head knot.  Layer knots
+   store pin ids as their yod.  Layers, internal knots, and pin heights are not
+   public API.
+
+   skput inserts after existing equals and returns the new pin.  skfind returns
+   the first equal pin; sklower returns the first pin >= chet; skupper returns
+   the first pin > chet.  No result sets errmsg().
+
+   skfirst/sklast return the ordered first/last pin; empty skiplists are errors.
+   sknext/skprev return false without error at ordered ends and silently skip a
+   null output pointer.  skdel deletes one live pin by identity.  skdels starts
+   at a live pin and deletes the forward contiguous run comparing equal to that
+   pin's yod.
+
+   skpins enumerates live pins in bottom-layer sorted order with the
+   count/cap/null-buffer convention.
+   ═══════════════════════════════════════════════════════ */
+
+int    mkskiplist(int arena);
+void   rmskiplist(int skip);
+uvlong skput(int skip, uvlong yod, int (*cmp)(uvlong yod, uvlong chet, void *arg), void *arg);
+bool   skdel(int skip, uvlong pin);
+uvlong skdels(int skip, uvlong pin, int (*cmp)(uvlong yod, uvlong chet, void *arg), void *arg);
+uvlong skyod(int skip, uvlong pin);
+uvlong sknpin(int skip);
+uvlong skpins(int skip, uvlong *buf, uvlong cap);
+uvlong skfind(int skip, uvlong chet, int (*cmp)(uvlong yod, uvlong chet, void *arg), void *arg);
+uvlong sklower(int skip, uvlong chet, int (*cmp)(uvlong yod, uvlong chet, void *arg), void *arg);
+uvlong skupper(int skip, uvlong chet, int (*cmp)(uvlong yod, uvlong chet, void *arg), void *arg);
+uvlong skfirst(int skip);
+uvlong sklast(int skip);
+bool   sknext(int skip, uvlong pin, uvlong *next);
+bool   skprev(int skip, uvlong pin, uvlong *prev);

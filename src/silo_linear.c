@@ -1,9 +1,16 @@
 #include "silo_priv.h"
+#include "err.h"
 #include <string.h>
 
 static silo_t *linear_get(int desc, int type) {
 	silo_t *s = silo_get(desc);
 	if (!s || s->type != type) return null;
+	return s;
+}
+
+static silo_t *seq_get(int seq, char *who) {
+	silo_t *s = linear_get(seq, silo_seq);
+	if (!s) errmsg(who);
 	return s;
 }
 
@@ -25,7 +32,10 @@ static void rmlinear(silo_t *s) {
 
 static bool append_linear(silo_t *s, uvlong data) {
 	uvlong needed;
-	if (!addok64(s->len, 1, &needed)) return false;
+	if (!addok64(s->len, 1, &needed)) {
+		errmsg("silo: size overflow");
+		return false;
+	}
 	if (!silo_grow(s, needed)) return false;
 	s->data [s->len++] = data;
 	silo_touch(s);
@@ -111,17 +121,23 @@ void rmqueue(int queue) {
 int  mkseq(int arena) { return silo_new(silo_seq, arena); }
 
 void atch(int seq, uvlong data) {
-	silo_t *s = linear_get(seq, silo_seq);
+	silo_t *s = seq_get(seq, "atch: bad sequence");
 	if (!s) return;
 	append_linear(s, data);
 }
 
 void place(int seq, vlong pos, uvlong data) {
-	silo_t *s = linear_get(seq, silo_seq);
+	silo_t *s = seq_get(seq, "place: bad sequence");
 	if (!s) return;
-	if (!norm_index(s, &pos, true)) return;
+	if (!norm_index(s, &pos, true)) {
+		errmsg("place: index out of bounds");
+		return;
+	}
 	uvlong needed;
-	if (!addok64(s->len, 1, &needed)) return;
+	if (!addok64(s->len, 1, &needed)) {
+		errmsg("place: size overflow");
+		return;
+	}
 	if (!silo_grow(s, needed)) return;
 	seq_shift_right(s, ( uvlong ) pos);
 	s->data [pos] = data;
@@ -130,9 +146,12 @@ void place(int seq, vlong pos, uvlong data) {
 }
 
 uvlong drop(int seq, vlong pos) {
-	silo_t *s = linear_get(seq, silo_seq);
+	silo_t *s = seq_get(seq, "drop: bad sequence");
 	if (!s) return 0;
-	if (!norm_index(s, &pos, false)) return 0;
+	if (!norm_index(s, &pos, false)) {
+		errmsg("drop: index out of bounds");
+		return 0;
+	}
 	uvlong val = s->data [pos];
 	if (( uvlong ) pos < s->len - 1) seq_shift_left(s, ( uvlong ) pos);
 	s->len--;
@@ -141,9 +160,12 @@ uvlong drop(int seq, vlong pos) {
 }
 
 void swap(int seq, vlong pa, vlong pb) {
-	silo_t *s = linear_get(seq, silo_seq);
+	silo_t *s = seq_get(seq, "swap: bad sequence");
 	if (!s) return;
-	if (!norm_index(s, &pa, false) || !norm_index(s, &pb, false)) return;
+	if (!norm_index(s, &pa, false) || !norm_index(s, &pb, false)) {
+		errmsg("swap: index out of bounds");
+		return;
+	}
 	uvlong tmp   = s->data [pa];
 	s->data [pa] = s->data [pb];
 	s->data [pb] = tmp;
@@ -151,23 +173,37 @@ void swap(int seq, vlong pa, vlong pb) {
 }
 
 uvlong pick(int seq, vlong pos) {
-	silo_t *s = linear_get(seq, silo_seq);
+	silo_t *s = seq_get(seq, "pick: bad sequence");
 	if (!s) return 0;
-	if (!norm_index(s, &pos, false)) return 0;
+	if (!norm_index(s, &pos, false)) {
+		errmsg("pick: index out of bounds");
+		return 0;
+	}
 	return s->data [pos];
 }
 
 uvlong slen(int seq) {
-	silo_t *s = linear_get(seq, silo_seq);
+	silo_t *s = seq_get(seq, "slen: bad sequence");
 	if (!s) return 0;
 	return s->len;
 }
 
 uvlong swath(int seq, vlong start, vlong end, uvlong **data) {
 	if (data) *data = null;
-	silo_t *s = linear_get(seq, silo_seq);
-	if (!s || !data) return 0;
-	if (!norm_index(s, &start, false) || !norm_index(s, &end, false) || end < start) return 0;
+	silo_t *s = seq_get(seq, "swath: bad sequence");
+	if (!s) return 0;
+	if (!data) {
+		errmsg("swath: bad output");
+		return 0;
+	}
+	if (!norm_index(s, &start, false) || !norm_index(s, &end, false)) {
+		errmsg("swath: index out of bounds");
+		return 0;
+	}
+	if (end < start) {
+		errmsg("swath: reversed range");
+		return 0;
+	}
 	*data = s->data + start;
 	return ( uvlong ) (end - start + 1);
 }

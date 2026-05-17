@@ -13,6 +13,11 @@ static int failures = 0;
 	}                                       \
 	while (0)
 
+static void check_expected_error(bool ok, char *label) {
+	CHECK(ok && err(), label);
+	errmsg(null);
+}
+
 static bool pair_key_eq(uvlong *fields, char *a, char *b) {
 	uvlong *pair = ( uvlong * ) fields [1];
 	return fields [0] == sizeof(uvlong) * 4
@@ -46,9 +51,26 @@ int main(void) {
 	len = swath(seq, -3, -1, &slice);
 	CHECK(len == 3 && slice [0] == 30 && slice [2] == 50, "swath supports negative indices");
 	len = swath(seq, 3, 1, &slice);
-	CHECK(len == 0 && slice == null, "swath rejects reversed range");
+	check_expected_error(len == 0 && slice == null, "swath rejects reversed range");
 	len = swath(seq, -99, 2, &slice);
-	CHECK(len == 0 && slice == null, "swath rejects out of range");
+	check_expected_error(len == 0 && slice == null, "swath rejects out of range");
+	rmseq(seq);
+
+	printf("\n=== sequence errors ===\n");
+	seq = mkseq(0);
+	CHECK(seq >= 0 && slen(seq) == 0 && !err(), "empty sequence length is quiet");
+	check_expected_error(pick(seq, 0) == 0, "pick empty sequence sets error");
+	check_expected_error(drop(seq, 0) == 0, "drop empty sequence sets error");
+	place(seq, 2, 10);
+	check_expected_error(true, "place out of bounds sets error");
+	atch(seq, 10);
+	atch(seq, 20);
+	swap(seq, 0, 9);
+	check_expected_error(true, "swap out of bounds sets error");
+	check_expected_error(swath(seq, 0, 1, null) == 0, "swath null output sets error");
+	check_expected_error(slen(-1) == 0, "slen invalid descriptor sets error");
+	atch(-1, 1);
+	check_expected_error(true, "atch invalid descriptor sets error");
 	rmseq(seq);
 
 	printf("\n=== cartesprod ===\n");
