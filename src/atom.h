@@ -3,19 +3,19 @@
 #include <limits.h>
 
 #if defined(_MSC_VER)
-	#include <intrin.h>
+  #include <intrin.h>
 #endif
 
 #ifndef __has_builtin
-	#define __has_builtin(x) 0
+  #define __has_builtin(x) 0
 #endif
 
 #if defined(__clang__)
-	#define COETUA_ATOM_CLANG 1
+  #define COETUA_ATOM_CLANG 1
 #elif defined(_MSC_VER)
-	#define COETUA_ATOM_MSVC 1
+  #define COETUA_ATOM_MSVC 1
 #elif defined(__GNUC__)
-	#define COETUA_ATOM_GNU 1
+  #define COETUA_ATOM_GNU 1
 #endif
 
 /* ═══════════════════════════════════════════════════════
@@ -312,66 +312,38 @@ static uvlong inline atom_rotr64(uvlong x, int k) {
 }
 
 /* ── Count leading zeros ───────────────────────────── */
-static int inline clz32(uint x) {
-	return atom_clz32(x);
-}
+static int inline clz32(uint x) { return atom_clz32(x); }
 
-static int inline clz64(uvlong x) {
-	return atom_clz64(x);
-}
+static int inline clz64(uvlong x) { return atom_clz64(x); }
 
 /* ── Count trailing zeros ──────────────────────────── */
-static int inline ctz32(uint x) {
-	return atom_ctz32(x);
-}
+static int inline ctz32(uint x) { return atom_ctz32(x); }
 
-static int inline ctz64(uvlong x) {
-	return atom_ctz64(x);
-}
+static int inline ctz64(uvlong x) { return atom_ctz64(x); }
 
 /* ── Population count ──────────────────────────────── */
-static int inline popcnt32(uint x) {
-	return atom_popcnt32(x);
-}
+static int inline popcnt32(uint x) { return atom_popcnt32(x); }
 
-static int inline popcnt64(uvlong x) {
-	return atom_popcnt64(x);
-}
+static int inline popcnt64(uvlong x) { return atom_popcnt64(x); }
 
 /* ── Byte swap ─────────────────────────────────────── */
-static uint inline bswap32(uint x) {
-	return atom_bswap32(x);
-}
+static uint inline bswap32(uint x) { return atom_bswap32(x); }
 
-static uvlong inline bswap64(uvlong x) {
-	return atom_bswap64(x);
-}
+static uvlong inline bswap64(uvlong x) { return atom_bswap64(x); }
 
 /* ── Bit reverse ───────────────────────────────────── */
-static uint inline bitrev32(uint x) {
-	return atom_bitrev32(x);
-}
+static uint inline bitrev32(uint x) { return atom_bitrev32(x); }
 
-static uvlong inline bitrev64(uvlong x) {
-	return atom_bitrev64(x);
-}
+static uvlong inline bitrev64(uvlong x) { return atom_bitrev64(x); }
 
 /* ── Rotate ────────────────────────────────────────── */
-static uint inline rotl32(uint x, int k) {
-	return atom_rotl32(x, k);
-}
+static uint inline rotl32(uint x, int k) { return atom_rotl32(x, k); }
 
-static uint inline rotr32(uint x, int k) {
-	return atom_rotr32(x, k);
-}
+static uint inline rotr32(uint x, int k) { return atom_rotr32(x, k); }
 
-static uvlong inline rotl64(uvlong x, int k) {
-	return atom_rotl64(x, k);
-}
+static uvlong inline rotl64(uvlong x, int k) { return atom_rotl64(x, k); }
 
-static uvlong inline rotr64(uvlong x, int k) {
-	return atom_rotr64(x, k);
-}
+static uvlong inline rotr64(uvlong x, int k) { return atom_rotr64(x, k); }
 
 /* ── Power-of-2 / alignment ────────────────────────── */
 static bool inline ispow2(uint x) { return x && !(x & (x - 1)); }

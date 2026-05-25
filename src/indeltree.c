@@ -202,23 +202,6 @@ static void tree_insert(indel_t *t, uvlong node, incmpfn cmp, void *arg) {
 	bt_mark_red(t->root, false);
 }
 
-static void replace_child(indel_t *t, uvlong par, uvlong old, uvlong new) {
-	if (!par) {
-		t->root = new;
-		if (new) bt_set_par(new, 0);
-		return;
-	}
-	if (bt_kid(par, 0) == old) bt_set_kid(par, 0, new);
-	else bt_set_kid(par, 1, new);
-	if (new) bt_set_par(new, par);
-}
-
-static void transplant(indel_t *t, uvlong old, uvlong new) {
-	replace_child(t, bt_par(old), old, new);
-}
-
-static bool red_child(uvlong h) { return bt_redp(bt_kid(h, 0)) || bt_redp(bt_kid(h, 1)); }
-
 static int path_side(uvlong anc, uvlong target) {
 	if (anc == target) return -1;
 	uvlong k = target;
@@ -231,100 +214,144 @@ static int path_side(uvlong anc, uvlong target) {
 	return child_side(anc, k);
 }
 
-static uvlong push_red(indel_t *t, uvlong h, int side) {
-	uvlong child = bt_kid(h, side);
-	if (bt_redp(child) || red_child(child)) return h;
-
-	int other = side ^ 1;
-	uvlong sib = bt_kid(h, other);
-	if (bt_redp(sib)) {
-		uvlong top = rb_single(t, h, other);
-		bt_mark_red(top, false);
-		bt_mark_red(h, true);
-		h   = bt_kid(top, side);
-		sib = bt_kid(h, other);
+static int choose_delete_side(uvlong q, uvlong target, bool found, int replacement_side) {
+	if (!found) return path_side(q, target);
+	if (q == target) {
+		if (bt_kid(q, 1)) return 1;
+		if (bt_kid(q, 0)) return 0;
+		return 0;
 	}
-
-	if (!sib) {
-		bt_mark_red(child, true);
-		return h;
-	}
-
-	if (!bt_redp(bt_kid(sib, 0)) && !bt_redp(bt_kid(sib, 1))) {
-		bt_mark_red(h, false);
-		bt_mark_red(child, true);
-		bt_mark_red(sib, true);
-		return h;
-	}
-
-	if (bt_redp(bt_kid(sib, side))) {
-		rb_single(t, sib, side);
-		sib = bt_kid(h, other);
-	}
-	bool hred = bt_redp(h);
-	uvlong top = rb_single(t, h, other);
-	bt_mark_red(top, hred);
-	bt_mark_red(h, false);
-	bt_mark_red(bt_kid(top, 0), false);
-	bt_mark_red(bt_kid(top, 1), false);
-	return top;
+	return replacement_side ? 0 : 1;
 }
 
-static void prepare_delete_path(indel_t *t, uvlong target) {
-	uvlong cur = t->root;
-	while (cur && cur != target) {
-		int side = path_side(cur, target);
-		if (side < 0) return;
-		cur = push_red(t, cur, side);
-		cur = bt_kid(cur, side);
-	}
-	if (cur == target && bt_kid(cur, 0) && bt_kid(cur, 1)) {
-		cur = push_red(t, cur, 1);
-		cur = bt_kid(cur, 1);
-		while (cur && bt_kid(cur, 0)) {
-			cur = push_red(t, cur, 0);
-			cur = bt_kid(cur, 0);
-		}
-	}
-	if (t->root) bt_mark_red(t->root, false);
+static uvlong remove_single_child(uvlong q) {
+	uvlong z = bt_kid(q, 0);
+	return z ? z : bt_kid(q, 1);
 }
 
-static void delete_raw(indel_t *t, uvlong raw) {
-	prepare_delete_path(t, raw);
-	uvlong z = bt_kid(raw, 0);
-	uvlong o = bt_kid(raw, 1);
-	bool rawred = bt_redp(raw);
-	if (!z) {
-		transplant(t, raw, o);
-		if (o) bt_mark_red(o, rawred);
-	}
-	else if (!o) {
-		transplant(t, raw, z);
-		if (z) bt_mark_red(z, rawred);
-	}
-	else {
-		uvlong y  = minimum(o);
-		uvlong yp = bt_par(y);
-		bool yred = bt_redp(y);
-		if (yp != raw) {
-			uvlong yr = bt_kid(y, 1);
-			transplant(t, y, yr);
-			if (yr) bt_mark_red(yr, yred);
-			bt_set_kid(y, 1, o);
-			bt_set_par(o, y);
-		}
-		transplant(t, raw, y);
-		bt_set_kid(y, 0, z);
-		bt_set_par(z, y);
-		bt_mark_red(y, rawred);
-		rawred = yred;
-	}
-	bt_mark_dead(raw);
+static void replace_at_parent(uvlong par, uvlong old, uvlong new) {
+	if (!par) return;
+	if (bt_kid(par, 0) == old) bt_set_kid(par, 0, new);
+	else bt_set_kid(par, 1, new);
+	if (new) bt_set_par(new, par);
+}
+
+static void detach_deleted(uvlong raw) {
 	bt_set_par(raw, 0);
 	bt_set_kid(raw, 0, 0);
 	bt_set_kid(raw, 1, 0);
-	bt_mark_red(raw, rawred);
-	if (t->root) bt_mark_red(t->root, false);
+	bt_mark_red(raw, false);
+	bt_mark_dead(raw);
+}
+
+static void move_replacement_into_deleted_slot(uvlong head, uvlong deleted, uvlong repl, uvlong repl_child) {
+	uvlong dpar = bt_par(deleted);
+	uvlong dz   = bt_kid(deleted, 0);
+	uvlong do_  = bt_kid(deleted, 1);
+	bool   dred = bt_redp(deleted);
+
+	if (dz == repl) dz = repl_child;
+	if (do_ == repl) do_ = repl_child;
+
+	replace_at_parent(dpar, deleted, repl);
+	bt_set_kid(repl, 0, dz);
+	bt_set_kid(repl, 1, do_);
+	if (dz) bt_set_par(dz, repl);
+	if (do_) bt_set_par(do_, repl);
+	bt_mark_red(repl, dred);
+
+	if (!dpar) bt_set_kid(head, 1, repl);
+}
+
+static void delete_raw(indel_t *t, uvlong raw) {
+	if (!t->root || !raw) return;
+
+	knod   headv = {0};
+	uvlong head  = bt_id(&headv);
+	bt_set_kid(head, 1, t->root);
+	bt_set_par(t->root, head);
+
+	uvlong q = head;
+	uvlong p = 0;
+	uvlong g = 0;
+	uvlong f = 0;
+	int    dir = 1;
+	int    replacement_side = -1;
+
+	while (bt_kid(q, dir)) {
+		int last = dir;
+		g        = p;
+		p        = q;
+		q        = bt_kid(q, dir);
+
+		if (q == raw) {
+			f = q;
+			replacement_side = bt_kid(q, 1) ? 1 : 0;
+		}
+
+		dir = choose_delete_side(q, raw, f != 0, replacement_side);
+		if (dir < 0) break;
+
+		if (!bt_redp(q) && !bt_redp(bt_kid(q, dir))) {
+			uvlong other = bt_kid(q, dir ^ 1);
+			if (bt_redp(other)) {
+				uvlong top = btrot(q, dir ^ 1);
+				bt_mark_red(top, false);
+				bt_mark_red(q, true);
+				if (p == head) bt_set_kid(head, last, top);
+				p = top;
+			}
+			else {
+				uvlong s = bt_kid(p, last ^ 1);
+				if (s) {
+					if (!bt_redp(bt_kid(s, last ^ 1)) && !bt_redp(bt_kid(s, last))) {
+						bt_mark_red(p, false);
+						bt_mark_red(s, true);
+						bt_mark_red(q, true);
+					}
+					else {
+						int gside = g ? child_side(g, p) : -1;
+						if (bt_redp(bt_kid(s, last))) {
+							uvlong top = rb_double(t, p, last ^ 1);
+							if (g) bt_set_kid(g, gside, top);
+						}
+						else if (bt_redp(bt_kid(s, last ^ 1))) {
+							uvlong top = rb_single(t, p, last ^ 1);
+							if (g) bt_set_kid(g, gside, top);
+						}
+						uvlong top = g ? bt_kid(g, gside) : bt_kid(head, 1);
+						bt_mark_red(q, true);
+						bt_mark_red(top, true);
+						bt_mark_red(bt_kid(top, 0), false);
+						bt_mark_red(bt_kid(top, 1), false);
+					}
+				}
+			}
+		}
+	}
+
+	if (!f) {
+		t->root = bt_kid(head, 1);
+		if (t->root) {
+			bt_set_par(t->root, 0);
+			bt_mark_red(t->root, false);
+		}
+		return;
+	}
+
+	uvlong repl       = q;
+	uvlong repl_par   = bt_par(repl);
+	uvlong repl_child = remove_single_child(repl);
+	replace_at_parent(repl_par, repl, repl_child);
+
+	if (f != repl) move_replacement_into_deleted_slot(head, f, repl, repl_child);
+	detach_deleted(f);
+
+	t->root = bt_kid(head, 1);
+	if (t->root) {
+		bt_set_par(t->root, 0);
+		bt_mark_red(t->root, false);
+	}
 }
 
 static uvlong minimum(uvlong r) {

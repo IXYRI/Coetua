@@ -63,6 +63,33 @@ static void creation_order_and_duplicates(void) {
 	rmindeltree(t);
 }
 
+static void insertion_patterns(void) {
+	printf("\n=== indeltree: insertion patterns ===\n");
+	int t = mkindeltree(0);
+	CHECK(t >= 0, "mkindeltree for insertion patterns");
+	bool ok = true;
+	for (uvlong i = 64; i > 0; i--) {
+		uvlong k = inplace(t, i, cmp_uv, null);
+		ok       = ok && k;
+	}
+	CHECK(ok && inref(t, infirst(t)) == 1 && inref(t, inlast(t)) == 64, "reverse insertion stays valid");
+	rmindeltree(t);
+
+	t = mkindeltree(0);
+	CHECK(t >= 0, "mkindeltree for duplicate-heavy insertion");
+	uvlong ks [48];
+	ok = true;
+	for (uint i = 0; i < arrlen(ks); i++) {
+		ks [i] = inplace(t, i % 3, cmp_uv, null);
+		ok     = ok && ks [i];
+	}
+	uvlong pins [48];
+	ok = ok && inknods(t, pins, arrlen(pins)) == arrlen(ks);
+	for (uint i = 1; i < arrlen(pins); i++) ok = ok && inref(t, pins [i - 1]) <= inref(t, pins [i]);
+	CHECK(ok, "duplicate-heavy insertion stays sorted and valid");
+	rmindeltree(t);
+}
+
 static void find_bounds_and_adjacency(void) {
 	printf("\n=== indeltree: find bounds and adjacency ===\n");
 	int t = mkindeltree(0);
@@ -161,12 +188,13 @@ static void mixed_delete_stress(void) {
 	enum { N = 120 };
 	uvlong ids [N + 1] = {0};
 	bool live [N + 1]  = {0};
+	bool ok = true;
 	for (uvlong i = 1; i <= N; i++) {
 		ids [i]  = inplace(t, i, cmp_uv, null);
 		live [i] = true;
+		ok       = ok && ids [i];
 	}
-	CHECK(refs_match_live(t, live, N), "stress insertion sorted");
-	bool ok = true;
+	CHECK(ok && refs_match_live(t, live, N), "stress insertion sorted");
 	for (uvlong step = 0; step < N; step++) {
 		uvlong i = ((step * 37) % N) + 1;
 		ok       = ok && indrop(t, ids [i]);
@@ -175,6 +203,49 @@ static void mixed_delete_stress(void) {
 	}
 	CHECK(ok && innknod(t) == 0, "mixed deletion keeps order until empty");
 	check_expected_error(infirst(t) == 0, "stress tree empty first sets error");
+	rmindeltree(t);
+}
+
+static bool fill_range(int t, uvlong *ids, uvlong n) {
+	bool ok = true;
+	for (uvlong i = 1; i <= n; i++) {
+		ids [i] = inplace(t, i, cmp_uv, null);
+		ok      = ok && ids [i];
+	}
+	return ok;
+}
+
+static void delete_order_patterns(void) {
+	printf("\n=== indeltree: delete order patterns ===\n");
+	enum { N = 63 };
+	uvlong ids [N + 1] = {0};
+	bool   live [N + 1] = {0};
+	bool   ok = true;
+
+	int t = mkindeltree(0);
+	CHECK(t >= 0, "mkindeltree for ascending delete");
+	ok = fill_range(t, ids, N);
+	for (uvlong i = 1; i <= N; i++) live [i] = true;
+	for (uvlong i = 1; i <= N; i++) {
+		ok       = ok && indrop(t, ids [i]);
+		live [i] = false;
+		ok       = ok && refs_match_live(t, live, N);
+	}
+	CHECK(ok && innknod(t) == 0, "ascending identity deletes stay valid");
+	rmindeltree(t);
+
+	t = mkindeltree(0);
+	CHECK(t >= 0, "mkindeltree for descending delete");
+	memset(live, 0, sizeof(live));
+	ok = fill_range(t, ids, N);
+	for (uvlong i = 1; i <= N; i++) live [i] = true;
+	for (uvlong i = N; i >= 1; i--) {
+		ok       = ok && indrop(t, ids [i]);
+		live [i] = false;
+		ok       = ok && refs_match_live(t, live, N);
+		if (i == 1) break;
+	}
+	CHECK(ok && innknod(t) == 0, "descending identity deletes stay valid");
 	rmindeltree(t);
 }
 
@@ -189,7 +260,8 @@ static void growth_and_reuse(void) {
 	}
 	CHECK(ok && innknod(t) == 200 && inref(t, infirst(t)) == 1 && inref(t, inlast(t)) == 200,
 	      "indeltree handles many insertions");
-	CHECK(indels(t, 100, 0, cmp_uv, null) == 1 && innknod(t) == 199, "indels removes matching singleton");
+	CHECK(indels(t, 100, 0, cmp_uv, null) == 1 && innknod(t) == 199,
+	      "indels removes matching singleton");
 	rmindeltree(t);
 	CHECK(innknod(t) == 0, "removed indeltree count is zero");
 	int reused = mkindeltree(0);
@@ -229,11 +301,13 @@ static void invalid_inputs(void) {
 
 int main(void) {
 	creation_order_and_duplicates();
+	insertion_patterns();
 	find_bounds_and_adjacency();
 	enumeration_and_deletion();
 	identity_deletion_cases();
 	duplicate_batch_deletion_identity();
 	mixed_delete_stress();
+	delete_order_patterns();
 	growth_and_reuse();
 	invalid_inputs();
 	printf("\n=== result: %d failures ===\n", failures);

@@ -6,11 +6,11 @@
 #include <string.h>
 
 #define SKMAXLAYER 64
-#define SKNONE    (( uvlong ) -1)
+#define SKNONE     (( uvlong ) -1)
 
-typedef struct skpin_t  skpin_t;
-typedef struct skip_t   skip_t;
-typedef int (*skcmpfn)(uvlong, uvlong, void *);
+typedef struct skpin_t skpin_t;
+typedef struct skip_t  skip_t;
+typedef int            (*skcmpfn)(uvlong, uvlong, void *);
 
 struct skpin_t {
 	uvlong  yod;
@@ -34,7 +34,7 @@ struct skip_t {
 static skip_t *sks;
 static int     skcap;
 
-static bool sk_table_init(void) {
+static bool    sk_table_init(void) {
 	if (sks) return true;
 	skcap = COETUA_SKIPLIST_TABLE_SEED > 0 ? COETUA_SKIPLIST_TABLE_SEED : 1;
 	sks   = ( skip_t * ) calloc(( size_t ) skcap, sizeof(skip_t));
@@ -110,19 +110,9 @@ static bool ensure_layers(skip_t *sk, uvlong nlayer) {
 	return true;
 }
 
-static uvlong random_height(void) {
-	uvlong h = 1;
-	uvlong r = qrand64();
-	while (h < SKMAXLAYER) {
-		if (!r) r = qrand64();
-		if (!(r & 1)) break;
-		h++;
-		r >>= 1;
-	}
-	return h;
-}
+static uvlong random_height(void) { return ctz64(qrand64() << 1); }
 
-static int cmp_pin(skip_t *sk, uvlong knot, skcmpfn cmp, uvlong chet, void *arg) {
+static int    cmp_pin(skip_t *sk, uvlong knot, skcmpfn cmp, uvlong chet, void *arg) {
 	uvlong pin = lsyod(knot);
 	return cmp(sk->pins [pin].yod, chet, arg);
 }
@@ -238,8 +228,8 @@ uvlong skput(int skip, uvlong yod, int (*cmp)(uvlong yod, uvlong chet, void *arg
 	uvlong uat [SKMAXLAYER]  = {0};
 	find_update(sk, yod, cmp, arg, true, upre, uat);
 
-	uvlong pin = sk->npin;
-	skpin_t p  = {.yod = yod, .height = h, .live = true};
+	uvlong  pin = sk->npin;
+	skpin_t p   = {.yod = yod, .height = h, .live = true};
 	if (!alloc_pin_arrays(&p, h)) return SKNONE;
 
 	uvlong made [SKMAXLAYER] = {0};
