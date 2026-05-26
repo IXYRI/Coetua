@@ -313,6 +313,47 @@ bool   innext(int tree, uvlong knod, uvlong *next);
 bool   inprev(int tree, uvlong knod, uvlong *prev);
 
 /* ═══════════════════════════════════════════════════════
+   Retrxtree — B+ tree ordered topology descriptors.
+   A retrxtree owns B+ tree shape only.  Keys and entry refs are caller-owned
+   uvlongs.  Ordering is supplied per operation by a comparator over key-domain
+   values; chet is the caller-provided comparison value.
+
+   Public entry ids are opaque, stable, and not reused within a live descriptor.
+   Entries live only in leaf order; internal pages and separator keys are not
+   public.  Duplicate keys are allowed.  rxput always creates a new entry and
+   inserts it after existing equals.
+
+   rxfind returns the first equal entry and exact miss is a quiet false result.
+   rxlower returns first entry >= chet; rxupper returns first entry > chet.
+   Missing bounds and empty first/last are errors.  rxnext/rxprev walk leaf
+   order and return quiet false at endpoints.
+
+   rxrange enumerates entries in [lo, hi) key order with the
+   count/cap/null-buffer convention.  Empty ranges are quiet.  rxdels starts at
+   a live entry, captures its key, and deletes the forward contiguous equal run.
+   ═══════════════════════════════════════════════════════ */
+
+int    mkrxtree(int arena);
+void   rmrxtree(int tree);
+uvlong rxput(int tree, uvlong key, uvlong ref, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg);
+bool   rxdel(int tree, uvlong ent);
+uvlong rxdels(int tree, uvlong ent, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg);
+uvlong rxkey(int tree, uvlong ent);
+uvlong rxref(int tree, uvlong ent);
+void   rrxref(int tree, uvlong ent, uvlong ref);
+uvlong rxnentry(int tree);
+uvlong rxentries(int tree, uvlong *buf, uvlong cap);
+bool   rxfind(int tree, uvlong chet, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg, uvlong *ent);
+uvlong rxlower(int tree, uvlong chet, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg);
+uvlong rxupper(int tree, uvlong chet, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg);
+uvlong rxfirst(int tree);
+uvlong rxlast(int tree);
+bool   rxnext(int tree, uvlong ent, uvlong *next);
+bool   rxprev(int tree, uvlong ent, uvlong *prev);
+uvlong rxrange(int tree, uvlong lo, uvlong hi, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg,
+               uvlong *buf, uvlong cap);
+
+/* ═══════════════════════════════════════════════════════
    Skiplist — ordered randomized skiplist topology descriptors.
    A skiplist owns shape only.  Pins are ordered elements with caller-owned
    uvlong yods.  Ordering is supplied per operation by a comparator over yod
