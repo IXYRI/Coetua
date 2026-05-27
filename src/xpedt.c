@@ -676,9 +676,7 @@ static bool materialize_silo(int d, xbuf *out) {
 	return true;
 }
 
-static bool materialize_product(xprod p, xbuf *out) {
-	return materialize_silo(p.d, out);
-}
+static bool materialize_product(xprod p, xbuf *out) { return materialize_silo(p.d, out); }
 
 static bool eval_source(xp_t *xp, int sd, xbind *bs, int nbind, xbuf *mats);
 

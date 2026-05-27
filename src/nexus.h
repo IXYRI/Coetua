@@ -350,8 +350,8 @@ uvlong rxfirst(int tree);
 uvlong rxlast(int tree);
 bool   rxnext(int tree, uvlong ent, uvlong *next);
 bool   rxprev(int tree, uvlong ent, uvlong *prev);
-uvlong rxrange(int tree, uvlong lo, uvlong hi, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg,
-               uvlong *buf, uvlong cap);
+uvlong rxrange(int tree, uvlong lo, uvlong hi, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg, uvlong *buf,
+               uvlong cap);
 
 /* ═══════════════════════════════════════════════════════
    Amtrie — array-mapped trie topology descriptors.
@@ -385,10 +385,52 @@ uvlong amref(int trie, uvlong ent);
 void   ramref(int trie, uvlong ent, uvlong ref);
 uvlong amnentry(int trie);
 uvlong amentries(int trie, uvlong *buf, uvlong cap);
-bool   amfind(int trie, uvlong hash, uvlong chet, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg, uvlong *ent);
+bool amfind(int trie, uvlong hash, uvlong chet, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg, uvlong *ent);
 uvlong ammatches(int trie, uvlong hash, uvlong chet, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg,
                  uvlong *buf, uvlong cap);
 uvlong amprefix(int trie, uvlong prefix, uint nbits, uvlong *buf, uvlong cap);
+
+/* ═══════════════════════════════════════════════════════
+   Sparsplane — sparse geometric plane topology descriptors.
+   A sparsplane owns spatial index shape only.  Points live at double
+   coordinates and store one caller-owned uvlong phi.  Public point ids are
+   opaque, stable, and not reused within a live descriptor.
+
+   mksparsplane() takes a positive finite block side length used for internal
+   spatial clustering.  Coordinates may be finite or ±Inf, but NaN is invalid.
+   Exact coordinate matching canonicalizes -0.0 to +0.0.  spput always creates
+   a point.  spat returns the unique point at an exact coordinate; missing or
+   duplicate points at that coordinate are errors.
+
+   spbox uses inclusive bounds and may use ±Inf bounds.  spcirc and spnear use
+   finite query coordinates; points with infinite coordinates are excluded from
+   circle and nearest queries.  spnear writes the nearest point and optionally
+   the second nearest point; requesting a second point when only one exists is
+   an error after writing the first.
+
+   sppts, spbox, and spcirc use SOA output.  ids/xs/ys/phis are independently
+   optional, but cap > 0 requires at least one output buffer.  The return value
+   is the full match count and at most cap rows are written to each non-null
+   buffer.  spmov, spboxmove, and spcircmove preserve point ids and phis.
+   ═══════════════════════════════════════════════════════ */
+
+int    mksparsplane(int arena, double block);
+void   rmsparsplane(int plane);
+uvlong spput(int plane, double x, double y, uvlong phi);
+bool   spdel(int plane, uvlong pt);
+uvlong spphi(int plane, uvlong pt);
+void   rspphi(int plane, uvlong pt, uvlong phi);
+void   sploctn(int plane, uvlong pt, double *x, double *y);
+bool   spmov(int plane, uvlong pt, double x, double y);
+uvlong spat(int plane, double x, double y);
+uvlong spnpt(int plane);
+uvlong sppts(int plane, uvlong *ids, double *xs, double *ys, uvlong *phis, uvlong cap);
+uvlong spbox(int plane, double xmin, double xmax, double ymin, double ymax, uvlong *ids, double *xs, double *ys,
+             uvlong *phis, uvlong cap);
+uvlong spcirc(int plane, double x, double y, double r, uvlong *ids, double *xs, double *ys, uvlong *phis, uvlong cap);
+uvlong spnear(int plane, double x, double y, uvlong *first, uvlong *second);
+uvlong spboxmove(int plane, double xmin, double xmax, double ymin, double ymax, double dx, double dy);
+uvlong spcircmove(int plane, double x, double y, double r, double dx, double dy);
 
 /* ═══════════════════════════════════════════════════════
    Skiplist — ordered randomized skiplist topology descriptors.

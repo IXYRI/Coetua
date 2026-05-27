@@ -3,7 +3,7 @@
 #include "hash.h"
 #include <string.h>
 
-static uchar empty_key;
+static uchar   empty_key;
 
 static htab_t *set_get(int set) { return htab_get(set); }
 
@@ -19,7 +19,7 @@ static void *key_bytes(void *data, uvlong len, char *who) {
 	return null;
 }
 
-static bool    set_contains(htab_t *t, void *data, uvlong len) {
+static bool set_contains(htab_t *t, void *data, uvlong len) {
 	if (!t || t->cap == 0) return false;
 	bool   found;
 	uvlong h = xxhash64(data, len);

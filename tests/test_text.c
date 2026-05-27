@@ -139,10 +139,10 @@ static void strand_error_spec(void) {
 static void strand_helper_spec(void) {
 	printf("\n=== strand helpers ===\n");
 	char *mixed_utf = "A\xe4\xb8\x96\xf0\x9f\x98\x80";
-	rune  mixed []   = {'A', 0x4e16, 0x1f600, 0};
-	rune  badutf []  = {Runeerror, Runeerror, 0};
-	rune  empty []   = {0};
-	int st = catstr(0, "one", " ", "two", "", " three", null);
+	rune  mixed []  = {'A', 0x4e16, 0x1f600, 0};
+	rune  badutf [] = {Runeerror, Runeerror, 0};
+	rune  empty []  = {0};
+	int   st        = catstr(0, "one", " ", "two", "", " three", null);
 	CHECK(st >= 0, "catstr returns strand descriptor");
 	strand_is(st, "one two three", "catstr concatenates C strings until null sentinel");
 	rmstrand(st);

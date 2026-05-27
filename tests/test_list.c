@@ -66,8 +66,8 @@ static void put_cat_and_cut(void) {
 	uvlong k2        = lsstep(0, k1);
 	uvlong k3        = lsstep(k1, k2);
 
-	uvlong insys [] = {7, 8};
-	bead   ins      = mklist(0, insys, arrlen(insys));
+	uvlong insys []  = {7, 8};
+	bead   ins       = mklist(0, insys, arrlen(insys));
 	lsput(0, k1, ins);
 	uvlong want_put [] = {1, 7, 8, 2, 3};
 	CHECK(yods_eq(0, k1, want_put, arrlen(want_put)), "lsput inserts bead after directional knot");
@@ -78,19 +78,19 @@ static void put_cat_and_cut(void) {
 	uvlong want_cat [] = {1, 7, 8, 2, 3, 9};
 	CHECK(yods_eq(0, k1, want_cat, arrlen(want_cat)), "lscat appends at directional end");
 
-	bead cut = lscut((bead) {.pre = k1, .fst = ins.fst, .lst = ins.lst});
+	bead   cut          = lscut((bead) {.pre = k1, .fst = ins.fst, .lst = ins.lst});
 	uvlong want_base [] = {1, 2, 3, 9};
 	CHECK(cut.pre == 0 && cut.fst == ins.fst && cut.lst == ins.lst, "lscut returns independent bead");
 	CHECK(yods_eq(0, k1, want_base, arrlen(want_base)), "lscut reconnects surrounding component");
 	CHECK(yods_eq(0, cut.fst, insys, arrlen(insys)), "lscut preserves cut bead order");
 	CHECK(k2 != 0 && k3 != 0, "sample keeps middle knots addressable");
 
-	uvlong singleys [] = {4, 5, 6};
-	bead   singleb    = mklist(0, singleys, arrlen(singleys));
-	uvlong s1         = singleb.fst;
-	uvlong s2         = lsstep(0, s1);
-	uvlong s3         = lsstep(s1, s2);
-	bead   singlecut  = lscut((bead) {.pre = s1, .fst = s2, .lst = s2});
+	uvlong singleys []         = {4, 5, 6};
+	bead   singleb             = mklist(0, singleys, arrlen(singleys));
+	uvlong s1                  = singleb.fst;
+	uvlong s2                  = lsstep(0, s1);
+	uvlong s3                  = lsstep(s1, s2);
+	bead   singlecut           = lscut((bead) {.pre = s1, .fst = s2, .lst = s2});
 	uvlong want_single_base [] = {4, 6};
 	uvlong want_single_cut []  = {5};
 	CHECK(yods_eq(0, s1, want_single_base, arrlen(want_single_base)), "lscut reconnects around single knot");
@@ -98,7 +98,7 @@ static void put_cat_and_cut(void) {
 	CHECK(s3 != 0, "single cut sample keeps following knot addressable");
 
 	uvlong revbaseys [] = {1, 2, 3};
-	bead   revbase     = mklist(0, revbaseys, arrlen(revbaseys));
+	bead   revbase      = mklist(0, revbaseys, arrlen(revbaseys));
 	uvlong revtailys [] = {9};
 	bead   revtail      = mklist(0, revtailys, arrlen(revtailys));
 	lscat(0, revbase.lst, revtail);
@@ -127,12 +127,12 @@ static void splice_and_empty(void) {
 	CHECK(yods_eq(0, k1, want, arrlen(want)), "lssplice cuts then puts bead at destination");
 
 	uvlong manyys [] = {1, 2, 3, 4, 5};
-	bead   many     = mklist(0, manyys, arrlen(manyys));
-	uvlong m1       = many.fst;
-	uvlong m2       = lsstep(0, m1);
-	uvlong m3       = lsstep(m1, m2);
-	uvlong m4       = lsstep(m2, m3);
-	uvlong m5       = lsstep(m3, m4);
+	bead   many      = mklist(0, manyys, arrlen(manyys));
+	uvlong m1        = many.fst;
+	uvlong m2        = lsstep(0, m1);
+	uvlong m3        = lsstep(m1, m2);
+	uvlong m4        = lsstep(m2, m3);
+	uvlong m5        = lsstep(m3, m4);
 	lssplice(m4, m5, (bead) {.pre = m1, .fst = m2, .lst = m3});
 	uvlong want_many [] = {1, 4, 5, 2, 3};
 	CHECK(yods_eq(0, m1, want_many, arrlen(want_many)), "lssplice moves multi-knot bead");

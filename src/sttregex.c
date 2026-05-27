@@ -50,7 +50,7 @@ static char *read_delimited(char **sp, int arena, bool *fatal) {
 				*fatal = true;
 				return null;
 			}
-			char  *nb   = aden(arena, ncap);
+			char *nb = aden(arena, ncap);
 			if (!nb) {
 				*fatal = true;
 				return null;
@@ -95,7 +95,7 @@ static Cmd *parse(int arena, char *se, int *nout, bool *fatal) {
 				goto fail;
 			}
 			cc       = ncc;
-			Cmd *nca  = realloc(ca, ( size_t ) (cc * sizeof(Cmd)));
+			Cmd *nca = realloc(ca, ( size_t ) (cc * sizeof(Cmd)));
 			if (!nca) {
 				errmsg("sttregex: out of memory");
 				*fatal = true;
@@ -234,9 +234,9 @@ static bool subchain_pick(Cmd *ca, int nc, int idx) {
 }
 
 static Resub *merge_caps(Resub *outer, int nouter, Resub *inner, int ninner, int *nout) {
-	int base  = nouter > 0 ? nouter : 1;
-	int total = base + (ninner > 0 ? ninner - 1 : 0);
-	Resub *m  = calloc(( size_t ) total, sizeof(Resub));
+	int    base  = nouter > 0 ? nouter : 1;
+	int    total = base + (ninner > 0 ? ninner - 1 : 0);
+	Resub *m     = calloc(( size_t ) total, sizeof(Resub));
 	if (!m) {
 		errmsg("sttregex: capture allocation failed");
 		return null;
@@ -247,8 +247,9 @@ static Resub *merge_caps(Resub *outer, int nouter, Resub *inner, int ninner, int
 	return m;
 }
 
-static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int ncap, int arena, Resub **ocaps, int *oncap);
-static int exec_from(Cmd *ca, int nc, int start, slitr in, int out, Resub *caps, int ncap, int arena);
+static int  step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int ncap, int arena, Resub **ocaps,
+                 int *oncap);
+static int  exec_from(Cmd *ca, int nc, int start, slitr in, int out, Resub *caps, int ncap, int arena);
 
 static void handoff_caps(Resub **ocaps, int *oncap, Resub *caps, int ncap) {
 	if (!ocaps || !oncap || !caps || ncap <= 0) return;
@@ -257,7 +258,8 @@ static void handoff_caps(Resub **ocaps, int *oncap, Resub *caps, int ncap) {
 	*oncap = ncap;
 }
 
-static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int ncap, int arena, Resub **ocaps, int *oncap) {
+static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int ncap, int arena, Resub **ocaps,
+                int *oncap) {
 	if (idx >= nc) {
 		concats(out, in);
 		return nc;
@@ -281,7 +283,7 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 	case CT_V : {
 		Resub m [64];
 		memset(m, 0, sizeof(m));
-		int  ok   = regexec9(c->re, in.s, in.len, m, 64);
+		int ok = regexec9(c->re, in.s, in.len, m, 64);
 		if (ok < 0) return -1;
 		bool pass = (c->type == CT_G) ? (ok > 0) : (ok <= 0);
 		if (!pass) {
@@ -292,7 +294,7 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 	}
 
 	case CT_S : {
-		int   tmp = mkstrand(arena);
+		int tmp = mkstrand(arena);
 		if (tmp < 0) return -1;
 		char *p   = in.s;
 		char *eos = in.s + in.len;
@@ -346,9 +348,7 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 			uvlong remain = ( uvlong ) (eos - p);
 			int    ok     = regexec9(c->re, p, remain, m, 64);
 			if (ok < 0) return -1;
-			if (ok == 0) {
-				break;
-			}
+			if (ok == 0) break;
 			if (m [0].s.sp == m [0].e.ep) {
 				int step = chartorune(&(rune) {0}, p);
 				if (step <= 0) step = 1;
@@ -373,7 +373,7 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 				}
 				Resub *child_caps = null;
 				int    child_ncap = 0;
-				int   ret = step(ca, nc, idx + 1, mtx, sub, merged, nmerged, arena, &child_caps, &child_ncap);
+				int    ret        = step(ca, nc, idx + 1, mtx, sub, merged, nmerged, arena, &child_caps, &child_ncap);
 				if (ret >= 0) {
 					concats(out, obslitr(sub));
 					subn = ret;
@@ -395,11 +395,11 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 				/* Y: run sub-chain on the gap, keep match text in edit mode */
 				slitr gap = mkslitr(p, ( uvlong ) (m [0].s.sp - p));
 				if (gap.len > 0) {
-					int   sub = mkstrand(arena);
+					int sub = mkstrand(arena);
 					if (sub < 0) return -1;
 					Resub *child_caps = null;
 					int    child_ncap = 0;
-					int   ret = step(ca, nc, idx + 1, gap, sub, caps, ncap, arena, &child_caps, &child_ncap);
+					int    ret        = step(ca, nc, idx + 1, gap, sub, caps, ncap, arena, &child_caps, &child_ncap);
 					if (ret >= 0) {
 						concats(out, obslitr(sub));
 						subn = ret;
@@ -419,7 +419,7 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 			if (sub < 0) return -1;
 			Resub *child_caps = null;
 			int    child_ncap = 0;
-			int   ret   = step(ca, nc, idx + 1, trail, sub, caps, ncap, arena, &child_caps, &child_ncap);
+			int    ret        = step(ca, nc, idx + 1, trail, sub, caps, ncap, arena, &child_caps, &child_ncap);
 			if (ret >= 0) {
 				concats(out, obslitr(sub));
 				if (!subn) subn = ret;
@@ -452,8 +452,8 @@ static int step(Cmd *ca, int nc, int idx, slitr in, int out, Resub *caps, int nc
 }
 
 static int exec_from(Cmd *ca, int nc, int start, slitr in, int out, Resub *caps, int ncap, int arena) {
-	int idx    = start;
-	int cur_sd = mkstrand(arena);
+	int    idx      = start;
+	int    cur_sd   = mkstrand(arena);
 	Resub *cur_caps = null;
 	int    cur_ncap = 0;
 	if (cur_sd < 0) return -1;
@@ -470,16 +470,16 @@ static int exec_from(Cmd *ca, int nc, int start, slitr in, int out, Resub *caps,
 	}
 
 	while (idx >= 0 && idx < nc) {
-		int   nxt_sd = mkstrand(arena);
+		int nxt_sd = mkstrand(arena);
 		if (nxt_sd < 0) {
 			rmstrand(cur_sd);
 			free(cur_caps);
 			return -1;
 		}
-		slitr cur    = obslitr(cur_sd);
+		slitr  cur       = obslitr(cur_sd);
 		Resub *next_caps = null;
 		int    next_ncap = 0;
-		int   next   = step(ca, nc, idx, cur, nxt_sd, cur_caps, cur_ncap, arena, &next_caps, &next_ncap);
+		int    next      = step(ca, nc, idx, cur, nxt_sd, cur_caps, cur_ncap, arena, &next_caps, &next_ncap);
 		if (next < 0) {
 			rmstrand(cur_sd);
 			cur_sd = nxt_sd;
@@ -513,9 +513,9 @@ int sttregex(int arena, char *str, char *se) {
 	if (!str || !se) return errmsg("null sttregex argument"), -1;
 	errmsg(null);
 
-	int  nc = 0;
+	int  nc    = 0;
 	bool fatal = false;
-	Cmd *ca = parse(arena, se, &nc, &fatal);
+	Cmd *ca    = parse(arena, se, &nc, &fatal);
 	if (!ca) {
 		if (fatal) return -1;
 		int sd = mkstrand(arena);

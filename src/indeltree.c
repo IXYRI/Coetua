@@ -6,7 +6,7 @@
 #include <string.h>
 
 typedef struct indel_t indel_t;
-typedef int (*incmpfn)(uvlong, uvlong, void *);
+typedef int            (*incmpfn)(uvlong, uvlong, void *);
 
 typedef struct rawvec {
 	uvlong *x;
@@ -15,17 +15,17 @@ typedef struct rawvec {
 } rawvec;
 
 struct indel_t {
-	int     arena;
-	uvlong  root;
-	uvlong  nlive;
-	uvlong  salt;
-	bool    live;
+	int    arena;
+	uvlong root;
+	uvlong nlive;
+	uvlong salt;
+	bool   live;
 };
 
 static indel_t *ins;
 static int      incap;
 
-static bool in_table_init(void) {
+static bool     in_table_init(void) {
 	if (ins) return true;
 	incap = COETUA_INDELTREE_TABLE_SEED > 0 ? COETUA_INDELTREE_TABLE_SEED : 1;
 	ins   = ( indel_t * ) calloc(( size_t ) incap, sizeof(indel_t));
@@ -81,7 +81,7 @@ static bool vec_push(rawvec *v, uvlong x) {
 }
 
 static uvlong salt_for(int tree) {
-	uvlong s = (( uvlong ) (uint) (tree + 1) << 32) ^ ( uvlong ) 0x9e3779b97f4a7c15ull;
+	uvlong s = (( uvlong ) ( uint ) (tree + 1) << 32) ^ ( uvlong ) 0x9e3779b97f4a7c15ull;
 	return s & ~BT_TAG_MASK;
 }
 
@@ -93,7 +93,7 @@ static uvlong minimum(uvlong r);
 static uvlong maximum(uvlong r);
 static uvlong successor(uvlong raw);
 
-static bool belongs(indel_t *t, uvlong raw) {
+static bool   belongs(indel_t *t, uvlong raw) {
 	if (!t || !raw || bt_deadp(raw)) return false;
 	uvlong r = raw;
 	while (bt_par(r)) r = bt_par(r);
@@ -133,8 +133,8 @@ static uvlong rb_rotate(indel_t *t, uvlong h, int side) {
 }
 
 static uvlong rb_single(indel_t *t, uvlong h, int side) {
-	bool hred = bt_redp(h);
-	uvlong x = rb_rotate(t, h, side);
+	bool   hred = bt_redp(h);
+	uvlong x    = rb_rotate(t, h, side);
 	bt_mark_red(x, hred);
 	bt_mark_red(h, true);
 	return x;
@@ -188,7 +188,7 @@ static void tree_insert(indel_t *t, uvlong node, incmpfn cmp, void *arg) {
 			}
 		}
 
-		int side = cmp(bt_raw(node)->ref, bt_raw(cur)->ref, arg) < 0 ? 0 : 1;
+		int    side = cmp(bt_raw(node)->ref, bt_raw(cur)->ref, arg) < 0 ? 0 : 1;
 		uvlong next = bt_kid(cur, side);
 		if (!next) {
 			set_child(t, cur, side, node);
@@ -271,11 +271,11 @@ static void delete_raw(indel_t *t, uvlong raw) {
 	bt_set_kid(head, 1, t->root);
 	bt_set_par(t->root, head);
 
-	uvlong q = head;
-	uvlong p = 0;
-	uvlong g = 0;
-	uvlong f = 0;
-	int    dir = 1;
+	uvlong q                = head;
+	uvlong p                = 0;
+	uvlong g                = 0;
+	uvlong f                = 0;
+	int    dir              = 1;
 	int    replacement_side = -1;
 
 	while (bt_kid(q, dir)) {
@@ -285,7 +285,7 @@ static void delete_raw(indel_t *t, uvlong raw) {
 		q        = bt_kid(q, dir);
 
 		if (q == raw) {
-			f = q;
+			f                = q;
 			replacement_side = bt_kid(q, 1) ? 1 : 0;
 		}
 

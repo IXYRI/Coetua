@@ -5,7 +5,7 @@
 
 static uchar empty_field;
 
-static bool bad_fields(uvlong *p, bool ismap, char *who) {
+static bool  bad_fields(uvlong *p, bool ismap, char *who) {
 	if (!p) {
 		errmsg(who);
 		return true;
@@ -23,7 +23,7 @@ static bool bad_fields(uvlong *p, bool ismap, char *who) {
 
 static void *field_ptr(uvlong len, uvlong ptr) { return ptr ? ( void * ) ptr : len == 0 ? &empty_field : null; }
 
-static void copy_linear_data(silo_t *src, uvlong *dst) {
+static void  copy_linear_data(silo_t *src, uvlong *dst) {
 	if (src->type == silo_queue) {
 		for (uvlong i = 0; i < src->len; i++) dst [i] = src->data [(src->head + i) % src->cap];
 		return;
@@ -56,11 +56,11 @@ static void htab_write_fields(htab_t *t, uvlong idx, uvlong **out) {
 }
 
 static bool htab_insert_fields(int desc, bool ismap, uvlong **in) {
-	uvlong *p     = *in;
+	uvlong *p = *in;
 	if (bad_fields(p, ismap, "silo fields: bad data")) return false;
-	uint    klen  = ( uint ) p [0];
-	void   *key   = field_ptr(p [0], p [1]);
-	p            += 2;
+	uint  klen  = ( uint ) p [0];
+	void *key   = field_ptr(p [0], p [1]);
+	p          += 2;
 	if (!ismap) {
 		adds(desc, key, klen);
 		*in = p;
@@ -309,7 +309,7 @@ void swop(int desc, void *data) {
 
 	uvlong *fields = ( uvlong * ) data;
 	if (bad_fields(fields, t->ismap, "swop: bad data")) return;
-	uvlong  idx    = first_live_slot(t);
+	uvlong idx = first_live_slot(t);
 	if (idx < t->cap) {
 		if (!t->ismap) swop_setlike(desc, t, idx, fields);
 		else swop_maplike(desc, t, idx, fields);

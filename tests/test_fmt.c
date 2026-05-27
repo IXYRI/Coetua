@@ -779,7 +779,8 @@ static void comma_flags(void) {
 	sd = fmts(0, "%,b", 255);
 	expect_fmt(sd, "11,111,111", "comma binary");
 	sd = fmts(0, "%ll,b", ( uvlong ) ULLONG_MAX);
-	expect_fmt(sd, "1,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111", "comma binary full uvlong");
+	expect_fmt(sd, "1,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111,111",
+	           "comma binary full uvlong");
 	sd = fmts(0, "%lld", ( vlong ) LLONG_MIN);
 	expect_fmt(sd, "-9223372036854775808", "signed minimum without overflow");
 }

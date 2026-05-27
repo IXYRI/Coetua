@@ -58,8 +58,8 @@ static void arc_refs_parallel_and_self_loop(void) {
 	printf("\n=== ugraph: arcs parallel and self-loop ===\n");
 	int g = mkugraph(0);
 	CHECK(g >= 0, "mkugraph for arcs");
-	uvlong a = ugdot(g, 1);
-	uvlong b = ugdot(g, 2);
+	uvlong a   = ugdot(g, 1);
+	uvlong b   = ugdot(g, 2);
 	uvlong ab0 = ugarc(g, a, b, 10);
 	uvlong ab1 = ugarc(g, b, a, 20);
 	uvlong aa  = ugarc(g, a, a, 30);
@@ -74,11 +74,11 @@ static void arc_refs_parallel_and_self_loop(void) {
 	uvlong ea = 99, eb = 99;
 	CHECK(ugends(g, ab0, &ea, &eb) && ea == a && eb == b, "ugends returns arc endpoints");
 	uvlong dots [6] = {99, 99, 99, 99, 99, 99};
-	uvlong nd = ugadots(g, a, dots, arrlen(dots));
+	uvlong nd       = ugadots(g, a, dots, arrlen(dots));
 	CHECK(nd == 4 && count_uv(dots, nd, b) == 2 && count_uv(dots, nd, a) == 2,
 	      "ugadots preserves multiplicity and self-loop appears twice");
 	uvlong arcs [4] = {99, 99, 99, 99};
-	uvlong na = ugaarcs(g, a, arcs, arrlen(arcs));
+	uvlong na       = ugaarcs(g, a, arcs, arrlen(arcs));
 	CHECK(na == 3 && has_uv(arcs, na, ab0) && has_uv(arcs, na, ab1) && has_uv(arcs, na, aa),
 	      "ugaarcs enumerates incident arcs once");
 	CHECK(ugarcs(g, null, 0) == 3, "ugarcs counts all live arcs");
@@ -89,9 +89,9 @@ static void deletion_cascades_and_tombstones(void) {
 	printf("\n=== ugraph: deletion cascades and tombstones ===\n");
 	int g = mkugraph(0);
 	CHECK(g >= 0, "mkugraph for deletion");
-	uvlong a = ugdot(g, 1);
-	uvlong b = ugdot(g, 2);
-	uvlong c = ugdot(g, 3);
+	uvlong a   = ugdot(g, 1);
+	uvlong b   = ugdot(g, 2);
+	uvlong c   = ugdot(g, 3);
 	uvlong ab0 = ugarc(g, a, b, 10);
 	uvlong ab1 = ugarc(g, a, b, 20);
 	uvlong ac  = ugarc(g, a, c, 30);
@@ -103,8 +103,9 @@ static void deletion_cascades_and_tombstones(void) {
 	CHECK(ugndot(g) == 2 && ugnarc(g) == 1, "cascade leaves unrelated arc live");
 	CHECK(uglinked(g, b, c) == 1, "unrelated live arc remains linked");
 	uvlong arcs [4] = {99, 99, 99, 99};
-	uvlong n = ugarcs(g, arcs, arrlen(arcs));
-	CHECK(n == 1 && arcs [0] == bc && !has_uv(arcs, n, ab1) && !has_uv(arcs, n, ac), "ugarcs skips cascade-deleted arcs");
+	uvlong n        = ugarcs(g, arcs, arrlen(arcs));
+	CHECK(n == 1 && arcs [0] == bc && !has_uv(arcs, n, ab1) && !has_uv(arcs, n, ac),
+	      "ugarcs skips cascade-deleted arcs");
 	check_expected_error(ugarcref(g, ab1) == 0, "dead arc ref is an error");
 	check_expected_error(uglinked(g, a, b) == 0, "dead dot in uglinked is an error");
 	rmugraph(g);
@@ -125,7 +126,7 @@ static void connectivity_and_component(void) {
 	CHECK(!ugreaches(g, a, d), "ugreaches rejects disconnected dot");
 	CHECK(!err(), "ugreaches false disconnected paths are quiet");
 	uvlong buf [4] = {99, 99, 99, 99};
-	uvlong n = ugcomp(g, a, buf, 2);
+	uvlong n       = ugcomp(g, a, buf, 2);
 	CHECK(n == 3 && buf [2] == 99 && buf [3] == 99, "ugcomp returns full count with cap");
 	n = ugcomp(g, a, buf, 4);
 	CHECK(n == 3 && has_uv(buf, n, a) && has_uv(buf, n, b) && has_uv(buf, n, c) && !has_uv(buf, n, d),
@@ -139,8 +140,8 @@ static void invalid_inputs(void) {
 	printf("\n=== ugraph: invalid inputs ===\n");
 	int g = mkugraph(0);
 	CHECK(g >= 0, "mkugraph for invalids");
-	uvlong a = ugdot(g, 1);
-	uvlong b = ugdot(g, 2);
+	uvlong a  = ugdot(g, 1);
+	uvlong b  = ugdot(g, 2);
 	uvlong ab = ugarc(g, a, b, 10);
 	CHECK(ugdot(-1, 1) == ( uvlong ) -1, "ugdot rejects invalid graph");
 	check_expected_error(true, "ugdot invalid graph sets error");
@@ -171,10 +172,10 @@ static void growth_and_reuse(void) {
 	int g = mkugraph(0);
 	CHECK(g >= 0, "mkugraph for growth");
 	uvlong ids [100];
-	bool dots = true;
+	bool   dots = true;
 	for (uvlong i = 0; i < arrlen(ids); i++) {
 		ids [i] = ugdot(g, i + 1000);
-		dots = dots && ids [i] != ( uvlong ) -1;
+		dots    = dots && ids [i] != ( uvlong ) -1;
 	}
 	CHECK(dots && ugndot(g) == arrlen(ids), "ugdot grows dot storage");
 	bool arcs = true;

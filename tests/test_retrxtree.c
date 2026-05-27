@@ -45,13 +45,13 @@ static bool sorted_walk_count(int t, uvlong wantn) {
 		uvlong next = 0;
 		if (!rxnext(t, cur, &next)) return n == wantn && cur == rxlast(t);
 		prev = cur;
-		cur = next;
+		cur  = next;
 	}
 }
 
 static bool keys_match_live(int t, bool *live, uvlong n) {
 	uvlong es [256] = {0};
-	uvlong wantn = 0;
+	uvlong wantn    = 0;
 	for (uvlong i = 1; i <= n; i++)
 		if (live [i]) wantn++;
 	if (rxentries(t, es, arrlen(es)) != wantn) return false;
@@ -74,11 +74,15 @@ static void creation_order_duplicates(void) {
 	uvlong e3  = rxput(t, 3, 30, cmp_uv, null);
 	uvlong e5b = rxput(t, 5, 51, cmp_uv, null);
 	uvlong e5c = rxput(t, 5, 52, cmp_uv, null);
-	CHECK(e5a != ( uvlong ) -1 && e1 != ( uvlong ) -1 && e3 != ( uvlong ) -1 && e5b != ( uvlong ) -1 &&
-	          e5c != ( uvlong ) -1,
+	CHECK(e5a != ( uvlong ) -1
+	        && e1 != ( uvlong ) -1
+	        && e3 != ( uvlong ) -1
+	        && e5b != ( uvlong ) -1
+	        && e5c != ( uvlong ) -1,
 	      "rxput returns entries");
 	uvlong want [] = {1, 3, 5, 5, 5};
-	CHECK(keys_are(t, want, arrlen(want)) && sorted_walk_count(t, arrlen(want)), "rxput keeps sorted order and duplicates after equals");
+	CHECK(keys_are(t, want, arrlen(want)) && sorted_walk_count(t, arrlen(want)),
+	      "rxput keeps sorted order and duplicates after equals");
 	CHECK(rxkey(t, e3) == 3 && rxref(t, e5b) == 51 && rxnentry(t) == 5, "rxkey rxref rxnentry");
 	rrxref(t, e5b, 510);
 	CHECK(rxref(t, e5b) == 510, "rrxref updates ref");
@@ -138,29 +142,36 @@ static void rxdels_cases(void) {
 	uvlong eq [6];
 	for (uvlong i = 0; i < arrlen(eq); i++) eq [i] = rxput(t, 7, i, cmp_uv, null);
 	uvlong after = rxput(t, 9, 9, cmp_uv, null);
-	CHECK(rxdels(t, eq [2], cmp_uv, null) == 4 && sorted_walk_count(t, 4), "rxdels deletes forward equal run from entry");
+	CHECK(rxdels(t, eq [2], cmp_uv, null) == 4 && sorted_walk_count(t, 4),
+	      "rxdels deletes forward equal run from entry");
 	CHECK(rxref(t, eq [0]) == 0 && rxref(t, eq [1]) == 1, "rxdels keeps previous equals");
 	for (uvlong i = 2; i < arrlen(eq); i++) check_expected_error(rxkey(t, eq [i]) == 0, "rxdels rejects deleted entry");
 	uvlong want [] = {1, 7, 7, 9};
-	CHECK(keys_are(t, want, arrlen(want)) && rxfirst(t) == before && rxlast(t) == after, "rxdels leaves surrounding order");
+	CHECK(keys_are(t, want, arrlen(want)) && rxfirst(t) == before && rxlast(t) == after,
+	      "rxdels leaves surrounding order");
 	rmrxtree(t);
 }
 
 static void duplicate_leaf_spans(void) {
 	printf("\n=== retrxtree: duplicate leaf spans ===\n");
-	enum { N = 180 };
+
+	enum
+	{
+		N = 180,
+	};
+
 	int t = mkrxtree(0);
 	CHECK(t >= 0, "mkrxtree duplicate spans");
 	uvlong ids [N];
-	bool ok = true;
+	bool   ok = true;
 	for (uvlong i = 0; i < N; i++) ids [i] = rxput(t, 42, i, cmp_uv, null);
-	ok = ok && sorted_walk_count(t, N);
+	ok           = ok && sorted_walk_count(t, N);
 	uvlong first = 0;
-	ok = ok && rxfind(t, 42, cmp_uv, null, &first) && first == ids [0];
-	ok = ok && rxrange(t, 42, 43, cmp_uv, null, null, 0) == N;
-	ok = ok && rxdels(t, ids [77], cmp_uv, null) == N - 77;
-	ok = ok && sorted_walk_count(t, 77);
-	ok = ok && rxlast(t) == ids [76];
+	ok           = ok && rxfind(t, 42, cmp_uv, null, &first) && first == ids [0];
+	ok           = ok && rxrange(t, 42, 43, cmp_uv, null, null, 0) == N;
+	ok           = ok && rxdels(t, ids [77], cmp_uv, null) == N - 77;
+	ok           = ok && sorted_walk_count(t, 77);
+	ok           = ok && rxlast(t) == ids [76];
 	for (uvlong i = 77; i < N; i++) {
 		ok = ok && !rxdel(t, ids [i]) && err();
 		errmsg(null);
@@ -171,12 +182,17 @@ static void duplicate_leaf_spans(void) {
 
 static void deletion_patterns(void) {
 	printf("\n=== retrxtree: deletion patterns ===\n");
-	enum { N = 96 };
-	uvlong ids [N + 1] = {0};
-	bool   live [N + 1] = {0};
-	bool   ok = true;
 
-	int t = mkrxtree(0);
+	enum
+	{
+		N = 96,
+	};
+
+	uvlong ids [N + 1]  = {0};
+	bool   live [N + 1] = {0};
+	bool   ok           = true;
+
+	int    t            = mkrxtree(0);
 	CHECK(t >= 0, "mkrxtree ascending delete");
 	for (uvlong i = 1; i <= N; i++) {
 		ids [i]  = rxput(t, i, i, cmp_uv, null);
@@ -229,15 +245,20 @@ static void deletion_patterns(void) {
 
 static void split_heavy_public_order(void) {
 	printf("\n=== retrxtree: split heavy public order ===\n");
-	enum { N = 2304 };
+
+	enum
+	{
+		N = 2304,
+	};
+
 	int t = mkrxtree(0);
 	CHECK(t >= 0, "mkrxtree split heavy");
 	uvlong ids [N];
-	bool ok = true;
+	bool   ok = true;
 	for (uvlong i = 0; i < N; i++) {
 		uvlong key = (i * 7919) % N;
-		ids [i] = rxput(t, key, i, cmp_uv, null);
-		ok = ok && ids [i] != ( uvlong ) -1;
+		ids [i]    = rxput(t, key, i, cmp_uv, null);
+		ok         = ok && ids [i] != ( uvlong ) -1;
 		if ((i & 63) == 63) ok = ok && sorted_walk_count(t, i + 1);
 	}
 	ok = ok && sorted_walk_count(t, N);
@@ -280,7 +301,7 @@ static void invalids_and_reuse(void) {
 	CHECK(reused == t, "mkrxtree reuses descriptor");
 	rmrxtree(reused);
 
-	int ids [80];
+	int  ids [80];
 	bool ok = true;
 	for (uvlong i = 0; i < arrlen(ids); i++) {
 		ids [i] = mkrxtree(0);

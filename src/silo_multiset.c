@@ -2,7 +2,7 @@
 #include "err.h"
 #include <string.h>
 
-static uchar empty_mkey;
+static uchar   empty_mkey;
 
 static htab_t *mset_get(int ms) { return htab_get(ms); }
 
@@ -18,7 +18,7 @@ static void *mkey_bytes(void *data, uvlong len, char *who) {
 	return null;
 }
 
-static uchar  *mset_key(htab_t *t, uvlong idx, uint *len) {
+static uchar *mset_key(htab_t *t, uvlong idx, uint *len) {
 	*len = t->klens [idx];
 	return t->keys + t->koffs [idx];
 }

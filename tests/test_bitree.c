@@ -98,8 +98,7 @@ static void rotations(void) {
 	uvlong zz = 1, zo = 3;
 	rbtkids(0, z, &zz, &zo);
 	uvlong nr = btrot(r, 0);
-	CHECK(nr == z && btpar(nr) == 0 && btpar(r) == z && btpar(zo) == r && kids_are(z, zz, r) &&
-	          kids_are(r, zo, o),
+	CHECK(nr == z && btpar(nr) == 0 && btpar(r) == z && btpar(zo) == r && kids_are(z, zz, r) && kids_are(r, zo, o),
 	      "btrot promotes zero child");
 	uvlong back = btrot(nr, 1);
 	CHECK(back == r && btpar(r) == 0 && btpar(z) == r && kids_are(r, z, o), "btrot promotes one child back");

@@ -32,7 +32,7 @@ static bool refs_are(int t, uvlong *want, uvlong n) {
 
 static bool refs_match_live(int t, bool *live, uvlong n) {
 	uvlong ks [160] = {0};
-	uvlong wantn = 0;
+	uvlong wantn    = 0;
 	for (uvlong i = 1; i <= n; i++)
 		if (live [i]) wantn++;
 	if (inknods(t, ks, arrlen(ks)) != wantn) return false;
@@ -94,10 +94,10 @@ static void find_bounds_and_adjacency(void) {
 	printf("\n=== indeltree: find bounds and adjacency ===\n");
 	int t = mkindeltree(0);
 	CHECK(t >= 0, "mkindeltree for queries");
-	uvlong k2 = inplace(t, 2, cmp_uv, null);
-	uvlong k4 = inplace(t, 4, cmp_uv, null);
-	uvlong k6 = inplace(t, 6, cmp_uv, null);
-	uvlong k8 = inplace(t, 8, cmp_uv, null);
+	uvlong k2  = inplace(t, 2, cmp_uv, null);
+	uvlong k4  = inplace(t, 4, cmp_uv, null);
+	uvlong k6  = inplace(t, 6, cmp_uv, null);
+	uvlong k8  = inplace(t, 8, cmp_uv, null);
 	uvlong out = 99;
 	CHECK(infind(t, 4, cmp_uv, null, &out) && out == k4, "infind returns equal knod");
 	CHECK(infind(t, 4, cmp_uv, null, null), "infind accepts null output");
@@ -117,11 +117,11 @@ static void enumeration_and_deletion(void) {
 	printf("\n=== indeltree: enumeration and deletion ===\n");
 	int t = mkindeltree(0);
 	CHECK(t >= 0, "mkindeltree for deletion");
-	uvlong k1  = inplace(t, 1, cmp_uv, null);
-	uvlong k2a = inplace(t, 2, cmp_uv, null);
-	uvlong k2b = inplace(t, 2, cmp_uv, null);
-	uvlong k2c = inplace(t, 2, cmp_uv, null);
-	uvlong k3  = inplace(t, 3, cmp_uv, null);
+	uvlong k1      = inplace(t, 1, cmp_uv, null);
+	uvlong k2a     = inplace(t, 2, cmp_uv, null);
+	uvlong k2b     = inplace(t, 2, cmp_uv, null);
+	uvlong k2c     = inplace(t, 2, cmp_uv, null);
+	uvlong k3      = inplace(t, 3, cmp_uv, null);
 	uvlong buf [8] = {99, 99, 99, 99, 99, 99, 99, 99};
 	CHECK(inknods(t, null, 0) == 5, "inknods counts without buffer");
 	CHECK(inknods(t, buf, 2) == 5 && buf [0] == k1 && buf [1] == k2a && buf [2] == 99, "inknods respects cap");
@@ -174,7 +174,8 @@ static void duplicate_batch_deletion_identity(void) {
 	CHECK(before && after, "surrounding duplicate keys inserted");
 	CHECK(indels(t, 7, 2, cmp_uv, null) == 4, "indels deletes duplicate suffix");
 	CHECK(inref(t, ks [0]) == 7 && inref(t, ks [1]) == 7, "duplicate prefix handles remain live");
-	for (uint i = 2; i < arrlen(ks); i++) check_expected_error(inref(t, ks [i]) == 0, "duplicate suffix handle is dead");
+	for (uint i = 2; i < arrlen(ks); i++)
+		check_expected_error(inref(t, ks [i]) == 0, "duplicate suffix handle is dead");
 	uvlong want [] = {1, 7, 7, 9};
 	CHECK(refs_are(t, want, arrlen(want)) && infirst(t) == before && inlast(t) == after,
 	      "duplicate batch deletion leaves no visible tombstones");
@@ -185,10 +186,15 @@ static void mixed_delete_stress(void) {
 	printf("\n=== indeltree: mixed delete stress ===\n");
 	int t = mkindeltree(0);
 	CHECK(t >= 0, "mkindeltree for mixed stress");
-	enum { N = 120 };
-	uvlong ids [N + 1] = {0};
-	bool live [N + 1]  = {0};
-	bool ok = true;
+
+	enum
+	{
+		N = 120,
+	};
+
+	uvlong ids [N + 1]  = {0};
+	bool   live [N + 1] = {0};
+	bool   ok           = true;
 	for (uvlong i = 1; i <= N; i++) {
 		ids [i]  = inplace(t, i, cmp_uv, null);
 		live [i] = true;
@@ -217,12 +223,17 @@ static bool fill_range(int t, uvlong *ids, uvlong n) {
 
 static void delete_order_patterns(void) {
 	printf("\n=== indeltree: delete order patterns ===\n");
-	enum { N = 63 };
-	uvlong ids [N + 1] = {0};
-	bool   live [N + 1] = {0};
-	bool   ok = true;
 
-	int t = mkindeltree(0);
+	enum
+	{
+		N = 63,
+	};
+
+	uvlong ids [N + 1]  = {0};
+	bool   live [N + 1] = {0};
+	bool   ok           = true;
+
+	int    t            = mkindeltree(0);
 	CHECK(t >= 0, "mkindeltree for ascending delete");
 	ok = fill_range(t, ids, N);
 	for (uvlong i = 1; i <= N; i++) live [i] = true;
@@ -260,8 +271,7 @@ static void growth_and_reuse(void) {
 	}
 	CHECK(ok && innknod(t) == 200 && inref(t, infirst(t)) == 1 && inref(t, inlast(t)) == 200,
 	      "indeltree handles many insertions");
-	CHECK(indels(t, 100, 0, cmp_uv, null) == 1 && innknod(t) == 199,
-	      "indels removes matching singleton");
+	CHECK(indels(t, 100, 0, cmp_uv, null) == 1 && innknod(t) == 199, "indels removes matching singleton");
 	rmindeltree(t);
 	CHECK(innknod(t) == 0, "removed indeltree count is zero");
 	int reused = mkindeltree(0);

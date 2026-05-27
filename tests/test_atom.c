@@ -29,8 +29,7 @@ int main(void) {
 	      "32-bit rotates mask zero/full shifts");
 	CHECK(rotl64(1, 40) == (( uvlong ) 1 << 40) && rotr64(( uvlong ) 1 << 40, 40) == 1,
 	      "64-bit rotates handle large shifts");
-	CHECK(rotl64(0x0123456789abcdefull, 64) == 0x0123456789abcdefull,
-	      "64-bit rotates mask full-width shifts");
+	CHECK(rotl64(0x0123456789abcdefull, 64) == 0x0123456789abcdefull, "64-bit rotates mask full-width shifts");
 
 	printf("\n=== atom: alignment and powers ===\n");
 	CHECK(ispow2(8) && !ispow2(7), "ispow2 distinguishes powers of two");
@@ -51,8 +50,7 @@ int main(void) {
 	p = wmul64(( uvlong ) -1, ( uvlong ) -1);
 	CHECK(p.lo == 1 && p.hi == ( uvlong ) -2, "wmul64 handles max product");
 	p = wmul64(0x123456789abcdef0ull, 0x0fedcba987654321ull);
-	CHECK(p.lo == 0x2236d88fe5618cf0ull && p.hi == 0x0121fa00ad77d742ull,
-	      "wmul64 matches known mixed product");
+	CHECK(p.lo == 0x2236d88fe5618cf0ull && p.hi == 0x0121fa00ad77d742ull, "wmul64 matches known mixed product");
 	u128 s = u128_add(u128_make(( uvlong ) -1, 0), u128_make(1, 0));
 	CHECK(s.lo == 0 && s.hi == 1, "u128_add carries");
 

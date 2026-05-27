@@ -75,8 +75,8 @@ static knod inline *bt_new_knod(int arena, uvlong ref, char *who) {
 		if (!err()) errmsg(who);
 		return null;
 	}
-	k->par     = 0;
-	k->ref     = ref;
+	k->par      = 0;
+	k->ref      = ref;
 	k->kids [0] = 0;
 	k->kids [1] = 0;
 	return k;

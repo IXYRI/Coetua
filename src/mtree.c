@@ -30,22 +30,22 @@ struct mtarm_t {
 };
 
 struct mtree_t {
-	int      arena;
+	int       arena;
 	mtknob_t *knobs;
-	uvlong   nknob;
-	uvlong   nlknob;
-	uvlong   capknob;
+	uvlong    nknob;
+	uvlong    nlknob;
+	uvlong    capknob;
 	mtarm_t  *arms;
-	uvlong   narm;
-	uvlong   nlarm;
-	uvlong   caparm;
-	bool     live;
+	uvlong    narm;
+	uvlong    nlarm;
+	uvlong    caparm;
+	bool      live;
 };
 
 static mtree_t *mts;
 static int      mtcap;
 
-static bool mt_table_init(void) {
+static bool     mt_table_init(void) {
 	if (mts) return true;
 	mtcap = COETUA_MTREE_TABLE_SEED > 0 ? COETUA_MTREE_TABLE_SEED : 1;
 	mts   = ( mtree_t * ) calloc(( size_t ) mtcap, sizeof(mtree_t));
@@ -150,7 +150,7 @@ static bool ensure_kid_slot(mtree_t *t, uvlong par) {
 
 static bool append_kid(mtree_t *t, uvlong par, uvlong kid, uvlong arm) {
 	if (!ensure_kid_slot(t, par)) return false;
-	uvlong n = t->knobs [par].nkid++;
+	uvlong n                   = t->knobs [par].nkid++;
 	t->knobs [par].kids [n]    = kid;
 	t->knobs [par].kidarms [n] = arm;
 	return true;
@@ -209,7 +209,7 @@ static uvlong copy_roots(mtree_t *t, uvlong *buf, uvlong cap) {
 
 static uvlong copy_kids(mtree_t *t, uvlong par, uvlong *buf, uvlong cap, bool arms) {
 	mtknob_t *p = &t->knobs [par];
-	uvlong   n = 0;
+	uvlong    n = 0;
 	for (uvlong i = 0; i < p->nkid; i++) {
 		uvlong kid = p->kids [i];
 		uvlong arm = p->kidarms [i];
@@ -221,7 +221,7 @@ static uvlong copy_kids(mtree_t *t, uvlong par, uvlong *buf, uvlong cap, bool ar
 }
 
 static uvlong *collect_subtree(mtree_t *t, uvlong knob, uvlong *np) {
-	uvlong *xs = ( uvlong * ) malloc(( size_t ) t->nknob * sizeof(uvlong));
+	uvlong *xs    = ( uvlong * ) malloc(( size_t ) t->nknob * sizeof(uvlong));
 	uvlong *stack = ( uvlong * ) malloc(( size_t ) t->nknob * sizeof(uvlong));
 	if (!xs || !stack) {
 		free(xs);
@@ -249,7 +249,7 @@ static uvlong *collect_subtree(mtree_t *t, uvlong knob, uvlong *np) {
 }
 
 static uvlong subtree_walk(mtree_t *t, uvlong knob, uvlong *buf, uvlong cap) {
-	uvlong n;
+	uvlong  n;
 	uvlong *xs = collect_subtree(t, knob, &n);
 	if (!xs) return 0;
 	for (uvlong i = 0; i < n && i < cap; i++)
@@ -354,14 +354,12 @@ uvlong mtdelknob(int tree, uvlong knob) {
 		errmsg("mtdelknob: bad knob");
 		return MTNONE;
 	}
-	uvlong n;
+	uvlong  n;
 	uvlong *xs = collect_subtree(t, knob, &n);
-	if (!xs) {
-		return MTNONE;
-	}
+	if (!xs) return MTNONE;
 	if (!rootknob(t, knob)) remove_kid(t, t->knobs [knob].par, knob, t->knobs [knob].inarm);
 	for (uvlong i = 0; i < n; i++) {
-		uvlong k = xs [i];
+		uvlong    k = xs [i];
 		mtknob_t *p = &t->knobs [k];
 		if (p->inarm != MTNONE) dead_arm(t, p->inarm);
 		for (uvlong j = 0; j < p->nkid; j++) dead_arm(t, p->kidarms [j]);

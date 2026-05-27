@@ -287,7 +287,7 @@ int main(void) {
 	rmset(ss);
 
 	printf("\n=== map: errors ===\n");
-	m = mkmap(0);
+	m    = mkmap(0);
 	vlen = sizeof(buf);
 	check_expected_error(!lookup(-1, "k", 1, buf, &vlen), "lookup invalid descriptor sets error");
 	insert(-1, "k", 1, "v", 1);

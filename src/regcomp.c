@@ -161,11 +161,11 @@ static bool evaluntil(Parser *p, int pri) {
 		case START : return true;
 		case LBRA  : {
 			Node    expr = popand(p, '(');
-			Reinst *r  = newinst(p, RBRA);
-			Reinst *l  = newinst(p, LBRA);
+			Reinst *r    = newinst(p, RBRA);
+			Reinst *l    = newinst(p, LBRA);
 			if (!r || !l) return false;
-			r->u1.subid      = ( int ) cap;
-			l->u1.subid      = ( int ) cap;
+			r->u1.subid        = ( int ) cap;
+			l->u1.subid        = ( int ) cap;
 			expr.last->u2.next = r;
 			l->u2.next         = expr.first;
 			if (!pushand(p, l, r)) return false;
@@ -544,15 +544,20 @@ static void patch_nops(Reprog *prog, Reinst *end) {
 Reprog *regcomp9(int arena, char *pattern) {
 	if (!pattern) return errmsg("null regex pattern"), null;
 	errmsg(null);
-	uvlong  plen     = strlen(pattern);
-	uvlong  maxinst, maxclass, instbytes, classbytes, tailbytes, bytes;
-	if (!mulok64(plen, 8, &maxinst) || !addok64(maxinst, 16, &maxinst) || !addok64(plen, 1, &maxclass)
-	    || !mulok64(maxinst, sizeof(Reinst), &instbytes) || !mulok64(maxclass, sizeof(Reclass), &classbytes)
-	    || !addok64(instbytes, classbytes, &tailbytes) || !addok64(sizeof(Reprog), tailbytes, &bytes)) {
+	uvlong plen = strlen(pattern);
+	uvlong maxinst, maxclass, instbytes, classbytes, tailbytes, bytes;
+	if (!mulok64(plen, 8, &maxinst)
+	    || !addok64(maxinst, 16, &maxinst)
+	    || !addok64(plen, 1, &maxclass)
+	    || !mulok64(maxinst, sizeof(Reinst), &instbytes)
+	    || !mulok64(maxclass, sizeof(Reclass), &classbytes)
+	    || !addok64(instbytes, classbytes, &tailbytes)
+	    || !addok64(sizeof(Reprog), tailbytes, &bytes))
+	{
 		errmsg("regex program too large");
 		return null;
 	}
-	Reprog *prog     = aden(arena, bytes);
+	Reprog *prog = aden(arena, bytes);
 	if (!prog) {
 		if (!err()) errmsg("regex allocation failed");
 		return null;

@@ -9,11 +9,9 @@ static bool bad_side(int side, char *who) {
 	return true;
 }
 
-static knod *new_knod(int arena, uvlong ref) {
-	return bt_new_knod(arena, ref, "bitree: out of memory");
-}
+static knod *new_knod(int arena, uvlong ref) { return bt_new_knod(arena, ref, "bitree: out of memory"); }
 
-static bool ancestor(uvlong anc, uvlong kid) {
+static bool  ancestor(uvlong anc, uvlong kid) {
 	for (uvlong k = kid; k; k = bt_par(k))
 		if (k == anc) return true;
 	return false;
@@ -73,13 +71,13 @@ static void walk_level(uvlong root, uvlong *buf, uvlong cap, uvlong *n) {
 
 static void clear_tree(uvlong root) {
 	if (!root) return;
-	knod *k = bt_raw(root);
+	knod  *k = bt_raw(root);
 	uvlong z = bt_kid(root, 0);
 	uvlong o = bt_kid(root, 1);
 	clear_tree(z);
 	clear_tree(o);
-	k->par     = 0;
-	k->ref     = 0;
+	k->par      = 0;
+	k->ref      = 0;
 	k->kids [0] = 0;
 	k->kids [1] = 0;
 }
@@ -287,11 +285,11 @@ uvlong btwalk(uvlong root, int order, uvlong *buf, uvlong cap) {
 	}
 	uvlong n = 0;
 	switch (order) {
-	case 0: walk_pre(root, buf, cap, &n); break;
-	case 1: walk_in(root, buf, cap, &n); break;
-	case 2: walk_post(root, buf, cap, &n); break;
-	case 3: walk_level(root, buf, cap, &n); break;
-	default: errmsg("btwalk: bad order"); return 0;
+	case 0  : walk_pre(root, buf, cap, &n); break;
+	case 1  : walk_in(root, buf, cap, &n); break;
+	case 2  : walk_post(root, buf, cap, &n); break;
+	case 3  : walk_level(root, buf, cap, &n); break;
+	default : errmsg("btwalk: bad order"); return 0;
 	}
 	return n;
 }

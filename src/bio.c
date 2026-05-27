@@ -456,8 +456,8 @@ void bungetrune(int bd) {
 }
 
 int bputrune(int bd, rune r) {
-	char buf [4];
-	int  n = runetochar(buf, &r);
+	char  buf [4];
+	int   n   = runetochar(buf, &r);
 	vlong put = bwrite(bd, buf, ( uvlong ) n);
 	return put == n ? n : -1;
 }

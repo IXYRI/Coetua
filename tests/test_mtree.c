@@ -32,8 +32,7 @@ static void creation_refs_and_order(void) {
 	uvlong a  = mtknob(t, r0, 300, 30);
 	uvlong b  = mtknob(t, r0, 400, 40);
 	uvlong c  = mtknob(t, a, 500, 50);
-	CHECK(r0 != ( uvlong ) -1 && r1 != ( uvlong ) -1 && a != ( uvlong ) -1 && b != ( uvlong ) -1 &&
-	          c != ( uvlong ) -1,
+	CHECK(r0 != ( uvlong ) -1 && r1 != ( uvlong ) -1 && a != ( uvlong ) -1 && b != ( uvlong ) -1 && c != ( uvlong ) -1,
 	      "mtroot and mtknob create knobs");
 	CHECK(mtnknob(t) == 5 && mtnarm(t) == 3, "mtree counts live knobs and arms");
 	CHECK(mtknobref(t, a) == 300, "mtknobref returns ref");
@@ -64,11 +63,11 @@ static void move_and_detach(void) {
 	printf("\n=== mtree: move and detach ===\n");
 	int t = mkmtree(0);
 	CHECK(t >= 0, "mkmtree for move");
-	uvlong r = mtroot(t, 1);
-	uvlong a = mtknob(t, r, 2, 20);
-	uvlong b = mtknob(t, r, 3, 30);
-	uvlong d = mtknob(t, b, 5, 50);
-	uvlong c = mtknob(t, a, 4, 40);
+	uvlong r    = mtroot(t, 1);
+	uvlong a    = mtknob(t, r, 2, 20);
+	uvlong b    = mtknob(t, r, 3, 30);
+	uvlong d    = mtknob(t, b, 5, 50);
+	uvlong c    = mtknob(t, a, 4, 40);
 	uvlong aarm = mtinarm(t, a);
 	uvlong darm = mtinarm(t, d);
 	CHECK(mtmove(t, a, b), "mtmove moves non-root subtree");
@@ -94,11 +93,11 @@ static void subtree_delete(void) {
 	printf("\n=== mtree: subtree deletion ===\n");
 	int t = mkmtree(0);
 	CHECK(t >= 0, "mkmtree for delete");
-	uvlong r = mtroot(t, 1);
-	uvlong a = mtknob(t, r, 2, 20);
-	uvlong b = mtknob(t, r, 3, 30);
-	uvlong c = mtknob(t, a, 4, 40);
-	uvlong d = mtknob(t, a, 5, 50);
+	uvlong r    = mtroot(t, 1);
+	uvlong a    = mtknob(t, r, 2, 20);
+	uvlong b    = mtknob(t, r, 3, 30);
+	uvlong c    = mtknob(t, a, 4, 40);
+	uvlong d    = mtknob(t, a, 5, 50);
 	uvlong carm = mtinarm(t, c);
 	CHECK(d != ( uvlong ) -1, "delete sample creates second descendant");
 	CHECK(mtdelknob(t, a) == 3, "mtdelknob returns deleted subtree knob count");
@@ -172,7 +171,7 @@ static void growth_and_reuse(void) {
 	bool ok = ids [0] != ( uvlong ) -1;
 	for (uvlong i = 1; i < arrlen(ids); i++) {
 		ids [i] = mtknob(t, ids [i - 1], i + 1000, i);
-		ok = ok && ids [i] != ( uvlong ) -1;
+		ok      = ok && ids [i] != ( uvlong ) -1;
 	}
 	CHECK(ok && mtnknob(t) == arrlen(ids) && mtnarm(t) == arrlen(ids) - 1, "mtree grows knob and arm storage");
 	CHECK(mtancestor(t, ids [0], ids [99]), "grown mtree ancestry");

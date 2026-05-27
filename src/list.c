@@ -8,15 +8,15 @@ typedef struct knot {
 	uvlong vav;
 } knot;
 
-static knot *as_knot(uvlong k) { return ( knot * ) k; }
+static knot  *as_knot(uvlong k) { return ( knot * ) k; }
 
 static uvlong knot_id(knot *k) { return ( uvlong ) k; }
 
-static bead empty_bead(void) { return (bead) {0, 0, 0}; }
+static bead   empty_bead(void) { return (bead) {0, 0, 0}; }
 
-static bool empty(bead b) { return b.fst == 0 && b.lst == 0; }
+static bool   empty(bead b) { return b.fst == 0 && b.lst == 0; }
 
-static bool bad_bead(bead b, char *who) {
+static bool   bad_bead(bead b, char *who) {
 	if ((b.fst == 0) != (b.lst == 0)) {
 		errmsg(who);
 		return true;
@@ -52,16 +52,16 @@ bead mklist(int arena, uvlong *yods, uvlong n) {
 		return empty_bead();
 	}
 
-	knot  *first = null;
-	knot  *last  = null;
+	knot *first = null;
+	knot *last  = null;
 	for (uvlong i = 0; i < n; i++) {
 		knot *k = new_knot(arena, yods [i]);
 		if (!k) return empty_bead();
 		if (!first) first = k;
 		if (last) {
-			uvlong lastid = knot_id(last);
-			last->vav ^= knot_id(k);
-			k->vav = lastid;
+			uvlong lastid  = knot_id(last);
+			last->vav     ^= knot_id(k);
+			k->vav         = lastid;
 		}
 		last = k;
 	}

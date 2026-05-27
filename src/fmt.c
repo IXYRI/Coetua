@@ -60,7 +60,7 @@ static void fmt_int(fmt *fp, uvlong val, int base, bool is_signed, char *digits)
 	if (mag == 0 && (fp->flags & FMT_PREC) && fp->prec == 0) { }
 	else {
 		do {
-			rev [ndig++] = digits [mag % ( uvlong ) base];
+			rev [ndig++]  = digits [mag % ( uvlong ) base];
 			mag          /= ( uvlong ) base;
 		}
 		while (mag > 0);
@@ -76,7 +76,7 @@ static void fmt_int(fmt *fp, uvlong val, int base, bool is_signed, char *digits)
 		comma_len = (digit_len - 1) / group;
 	}
 
-	int prefix_len = 0;
+	int  prefix_len = 0;
 	char prefix [3];
 	if (neg) prefix [prefix_len++] = '-';
 	else if (fp->flags & FMT_PLUS) prefix [prefix_len++] = '+';
@@ -88,10 +88,8 @@ static void fmt_int(fmt *fp, uvlong val, int base, bool is_signed, char *digits)
 	}
 
 	int dlen = prefix_len + digit_len + comma_len;
-	int pad = fmt_width_pad(fp, dlen);
-	if (!(fp->flags & FMT_LEFT) && !(fp->flags & FMT_ZERO)) {
-		fmt_putpad(fp, pad);
-	}
+	int pad  = fmt_width_pad(fp, dlen);
+	if (!(fp->flags & FMT_LEFT) && !(fp->flags & FMT_ZERO)) { fmt_putpad(fp, pad); }
 	else if ((fp->flags & FMT_ZERO) && !(fp->flags & FMT_LEFT)) {
 		if (prefix_len) concats(fp->sd, mkslitr(prefix, ( uvlong ) prefix_len));
 		fmt_putfill(fp, '0', pad);
@@ -633,7 +631,7 @@ static bool afmt_parse_formats(fmt *fp, afmt_state *st, char *subfmt) {
 	st->plan = afmt_analyze(st->subfmt);
 	if (!afmt_set_span(st)) return false;
 	if (st->compound && st->plan.nested_array) {
-		char *inner      = va_arg(fp->args, char *);
+		char *inner = va_arg(fp->args, char *);
 		if (!inner) return afmt_fail(st, "fmt %a: bad subformat");
 		st->inner_subfmt = afmt_normalize(inner, fp);
 		if (!st->inner_subfmt) return afmt_fail(st, null);
@@ -698,12 +696,12 @@ static bool fmt_verb_a(fmt *fp) {
 }
 
 static bool fmt_verb_t(fmt *fp) {
-	slitr sl   = va_arg(fp->args, slitr);
+	slitr sl = va_arg(fp->args, slitr);
 	if (!sl.s && sl.len > 0) {
 		errmsg("fmt %t: bad slitr");
 		return false;
 	}
-	int   slen = ( int ) sl.len;
+	int slen = ( int ) sl.len;
 	if ((fp->flags & FMT_PREC) && fp->prec < slen) slen = fp->prec;
 	fmt_putfield(fp, mkslitr(sl.s, ( uvlong ) slen));
 	return true;

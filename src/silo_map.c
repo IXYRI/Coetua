@@ -3,7 +3,7 @@
 #include "hash.h"
 #include <string.h>
 
-static uchar empty_data;
+static uchar   empty_data;
 
 /* Multisets store counts in the map value area and intentionally reuse
  * insert/lookup/oblit/revamp.  Plain map-only operations use getmap. */

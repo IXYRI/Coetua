@@ -67,7 +67,8 @@ static void captures_and_chains(void) {
 	expect_stt("a1b22c333", "x/%d+/d", "abc", "x edit deletes all digit runs");
 	expect_stt("a1b22c333", "x/%d+/d a/!/", "abc!", "post-x command runs once on edited text");
 	expect_stt("a1b22c333", "x/%d+/p a/!/", "122333!", "post-x command runs once on picked text");
-	expect_stt("  9front  ", "x/%s*%w+%s*/ x/%w+/ x/^(%d)/d a/\\1/", "  front9  ", "nested x preserves padding while editing word");
+	expect_stt("  9front  ", "x/%s*%w+%s*/ x/%w+/ x/^(%d)/d a/\\1/", "  front9  ",
+	           "nested x preserves padding while editing word");
 	expect_stt("target  \n  9front  \n  0cirn\n", "x/%s*%w+%s*\\n/ x/%w+/ x/^(%d)/d a/\\1/",
 	           "target  \n  front9  \n  cirn0\n", "nested x edits words inside lines");
 	expect_stt("ab", "x/(a)(b)/ c/[&|\\1|\\2]/", "[ab|a|b]", "replacement expands whole match and captures");
@@ -87,9 +88,12 @@ static void captures_and_chains(void) {
 static void cality_examples(void) {
 	printf("\n=== sttregex: Cality documented examples ===\n");
 
-	expect_stt("one\nstring here\ntwo\nother string\n", "x/.*\\n/ g/string/p", "string here\nother string\n", "Cality example keeps lines containing string");
-	expect_stt("rob\nrobot\nrobust\nplain\n", "x/.*\\n/ g/rob/ v/robot/p", "rob\nrobust\n", "Cality example filters rob but not robot");
-	expect_stt("i am in this list", "x/%a+/ g/i/ v/../ c/I/", "I am in this list", "Cality example capitalizes standalone i");
+	expect_stt("one\nstring here\ntwo\nother string\n", "x/.*\\n/ g/string/p", "string here\nother string\n",
+	           "Cality example keeps lines containing string");
+	expect_stt("rob\nrobot\nrobust\nplain\n", "x/.*\\n/ g/rob/ v/robot/p", "rob\nrobust\n",
+	           "Cality example filters rob but not robot");
+	expect_stt("i am in this list", "x/%a+/ g/i/ v/../ c/I/", "I am in this list",
+	           "Cality example capitalizes standalone i");
 	expect_stt("before { move(x,y); keep(); } after move(a,b)", "x/{[^}]*}/ s/move\\(([^,]+),([^)]+)\\)/move(\\2,\\1)/",
 	           "before { move(y,x); keep(); } after move(a,b)", "Cality example substitutes only inside braces");
 }

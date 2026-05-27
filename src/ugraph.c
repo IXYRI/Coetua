@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct ugdot_t ugdot_t;
-typedef struct ugarc_t ugarc_t;
+typedef struct ugdot_t  ugdot_t;
+typedef struct ugarc_t  ugarc_t;
 typedef struct ugraph_t ugraph_t;
 
 struct ugdot_t {
@@ -24,22 +24,22 @@ struct ugarc_t {
 };
 
 struct ugraph_t {
-	int     arena;
+	int      arena;
 	ugdot_t *dots;
-	uvlong  ndot;
-	uvlong  nldot;
-	uvlong  capdot;
+	uvlong   ndot;
+	uvlong   nldot;
+	uvlong   capdot;
 	ugarc_t *arcs;
-	uvlong  narc;
-	uvlong  nlarc;
-	uvlong  caparc;
-	bool    live;
+	uvlong   narc;
+	uvlong   nlarc;
+	uvlong   caparc;
+	bool     live;
 };
 
 static ugraph_t *ugs;
 static int       ugcap;
 
-static bool ug_table_init(void) {
+static bool      ug_table_init(void) {
 	if (ugs) return true;
 	ugcap = COETUA_UGRAPH_TABLE_SEED > 0 ? COETUA_UGRAPH_TABLE_SEED : 1;
 	ugs   = ( ugraph_t * ) calloc(( size_t ) ugcap, sizeof(ugraph_t));
@@ -142,7 +142,7 @@ static bool append_incident(ugraph_t *g, uvlong dot, uvlong arc) {
 	return true;
 }
 
-static bool same_ends(ugarc_t *e, uvlong a, uvlong b) { return (e->a == a && e->b == b) || (e->a == b && e->b == a); }
+static bool   same_ends(ugarc_t *e, uvlong a, uvlong b) { return (e->a == a && e->b == b) || (e->a == b && e->b == a); }
 
 static uvlong other_dot(ugarc_t *e, uvlong dot) { return e->a == dot ? e->b : e->a; }
 
@@ -197,7 +197,7 @@ static uvlong comp_walk(ugraph_t *g, uvlong dot, uvlong *buf, uvlong cap, bool s
 		}
 		ugdot_t *p = &g->dots [d];
 		for (uvlong i = 0; i < p->narc; i++) {
-			uvlong  a = p->arcs [i];
+			uvlong   a = p->arcs [i];
 			ugarc_t *e = &g->arcs [a];
 			if (!e->live) continue;
 			uvlong od = other_dot(e, d);
@@ -241,8 +241,8 @@ uvlong ugdot(int graph, uvlong ref) {
 		return ( uvlong ) -1;
 	}
 	if (g->ndot == g->capdot && !grow_dots(g)) return ( uvlong ) -1;
-	uvlong id     = g->ndot++;
-	g->dots [id]  = (ugdot_t) {.ref = ref, .live = true};
+	uvlong id    = g->ndot++;
+	g->dots [id] = (ugdot_t) {.ref = ref, .live = true};
 	g->nldot++;
 	return id;
 }
@@ -379,7 +379,7 @@ uvlong uglinked(int graph, uvlong a, uvlong b) {
 		errmsg("uglinked: bad dot");
 		return 0;
 	}
-	uvlong n = 0;
+	uvlong   n = 0;
 	ugdot_t *p = &g->dots [a];
 	for (uvlong i = 0; i < p->narc; i++) {
 		ugarc_t *e = &g->arcs [p->arcs [i]];
@@ -394,7 +394,7 @@ uvlong ugadots(int graph, uvlong dot, uvlong *buf, uvlong cap) {
 		errmsg("ugadots: bad dot");
 		return 0;
 	}
-	uvlong n = 0;
+	uvlong   n = 0;
 	ugdot_t *p = &g->dots [dot];
 	for (uvlong i = 0; i < p->narc; i++) {
 		ugarc_t *e = &g->arcs [p->arcs [i]];
@@ -419,7 +419,7 @@ uvlong ugaarcs(int graph, uvlong dot, uvlong *buf, uvlong cap) {
 		errmsg("ugaarcs: bad dot");
 		return 0;
 	}
-	uvlong n = 0;
+	uvlong   n = 0;
 	ugdot_t *p = &g->dots [dot];
 	for (uvlong i = 0; i < p->narc; i++) {
 		uvlong a = p->arcs [i];
@@ -436,7 +436,7 @@ uvlong ugdeg(int graph, uvlong dot) {
 		errmsg("ugdeg: bad dot");
 		return 0;
 	}
-	uvlong n = 0;
+	uvlong   n = 0;
 	ugdot_t *p = &g->dots [dot];
 	for (uvlong i = 0; i < p->narc; i++) {
 		ugarc_t *e = &g->arcs [p->arcs [i]];

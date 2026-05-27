@@ -12,7 +12,10 @@ uvlong siphash(void *data, uvlong len);
 uvlong xxhash64(void *data, uvlong len);
 
 /* Fixed 32-byte BLAKE3-256 content digest. */
-enum { CHASHLEN = 32 };
+enum
+{
+	CHASHLEN = 32,
+};
 
 typedef struct chash {
 	uchar b [CHASHLEN];

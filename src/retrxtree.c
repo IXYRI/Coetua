@@ -6,16 +6,17 @@
 
 #define RXNONE (( uvlong ) -1)
 
-enum {
+enum
+{
 	RXNODE_CAP = 64,
 	RXNODE_MIN = RXNODE_CAP / 2,
 };
 
-typedef int (*rxcmpfn)(uvlong, uvlong, void *);
-typedef struct rxnode rxnode;
+typedef int            (*rxcmpfn)(uvlong, uvlong, void *);
+typedef struct rxnode  rxnode;
 typedef struct rxentry rxentry;
-typedef struct rxtree rxtree;
-typedef struct rxplan rxplan;
+typedef struct rxtree  rxtree;
+typedef struct rxplan  rxplan;
 
 struct rxentry {
 	uvlong  key;
@@ -30,10 +31,13 @@ struct rxnode {
 	rxnode *parent;
 	uvlong  n;
 	uvlong  keys [RXNODE_CAP + 1];
-	union {
+
+	union
+	{
 		uvlong  ents [RXNODE_CAP + 1];
 		rxnode *kids [RXNODE_CAP + 2];
 	};
+
 	rxnode *prev;
 	rxnode *next;
 };
@@ -50,14 +54,14 @@ struct rxtree {
 
 struct rxplan {
 	rxnode **nodes;
-	uvlong  n;
-	uvlong  at;
+	uvlong   n;
+	uvlong   at;
 };
 
 static rxtree *rxs;
 static int     rxcap;
 
-static bool table_init(void) {
+static bool    table_init(void) {
 	if (rxs) return true;
 	rxcap = COETUA_RETRXTREE_TABLE_SEED > 0 ? COETUA_RETRXTREE_TABLE_SEED : 1;
 	rxs   = ( rxtree * ) calloc(( size_t ) rxcap, sizeof(rxtree));
@@ -90,9 +94,9 @@ static rxtree *rx_get(int tree) {
 	return &rxs [tree];
 }
 
-static bool entlive(rxtree *t, uvlong ent) { return t && ent < t->nent && t->ents [ent].live; }
+static bool    entlive(rxtree *t, uvlong ent) { return t && ent < t->nent && t->ents [ent].live; }
 
-static bool badbuf(uvlong *buf, uvlong cap) { return !buf && cap; }
+static bool    badbuf(uvlong *buf, uvlong cap) { return !buf && cap; }
 
 static rxnode *new_node(bool leaf) {
 	rxnode *n = ( rxnode * ) calloc(1, sizeof(rxnode));
@@ -109,7 +113,7 @@ static void free_plan(rxplan *p) {
 
 static rxnode *take_node(rxplan *p, bool leaf) {
 	rxnode *n = p->nodes [p->at++];
-	n->leaf = leaf;
+	n->leaf   = leaf;
 	return n;
 }
 
@@ -186,7 +190,7 @@ static rxnode *rightmost_leaf(rxnode *n) {
 
 static void update_leaf_positions(rxtree *t, rxnode *leaf) {
 	for (uvlong i = 0; leaf && i < leaf->n; i++) {
-		uvlong e = leaf->ents [i];
+		uvlong e         = leaf->ents [i];
 		t->ents [e].leaf = leaf;
 		t->ents [e].slot = i;
 	}
@@ -240,7 +244,7 @@ static void split_internal(rxtree *t, rxnode *n, rxplan *plan) {
 	uvlong  lch   = (total + 1) / 2;
 	uvlong  rch   = total - lch;
 	rxnode *r     = take_node(plan, false);
-	r->parent = n->parent;
+	r->parent     = n->parent;
 	for (uvlong i = 0; i < rch; i++) {
 		r->kids [i] = n->kids [lch + i];
 		if (r->kids [i]) r->kids [i]->parent = r;
@@ -256,7 +260,7 @@ static void split_internal(rxtree *t, rxnode *n, rxplan *plan) {
 static void insert_child_after(rxtree *t, rxnode *left, rxnode *right, rxplan *plan) {
 	rxnode *p = left->parent;
 	if (!p) {
-		rxnode *root = take_node(plan, false);
+		rxnode *root   = take_node(plan, false);
 		root->kids [0] = left;
 		root->kids [1] = right;
 		root->n        = 1;
@@ -280,10 +284,10 @@ static void split_leaf(rxtree *t, rxnode *l, rxplan *plan) {
 	uvlong  total = l->n;
 	uvlong  leftn = total / 2;
 	rxnode *r     = take_node(plan, true);
-	r->parent = l->parent;
-	r->n      = total - leftn;
+	r->parent     = l->parent;
+	r->n          = total - leftn;
 	for (uvlong i = 0; i < r->n; i++) r->ents [i] = l->ents [leftn + i];
-	l->n = leftn;
+	l->n    = leftn;
 	r->next = l->next;
 	r->prev = l;
 	if (r->next) r->next->prev = r;
@@ -425,8 +429,8 @@ static void rebalance_leaf(rxtree *t, rxnode *l) {
 	}
 	else if (z) {
 		for (uvlong i = 0; i < l->n; i++) z->ents [z->n + i] = l->ents [i];
-		z->n += l->n;
-		z->next = l->next;
+		z->n    += l->n;
+		z->next  = l->next;
 		if (z->next) z->next->prev = z;
 		update_leaf_positions(t, z);
 		free(l);
@@ -434,8 +438,8 @@ static void rebalance_leaf(rxtree *t, rxnode *l) {
 	}
 	else if (o) {
 		for (uvlong i = 0; i < o->n; i++) l->ents [l->n + i] = o->ents [i];
-		l->n += o->n;
-		l->next = o->next;
+		l->n    += o->n;
+		l->next  = o->next;
 		if (l->next) l->next->prev = l;
 		update_leaf_positions(t, l);
 		free(o);
@@ -496,7 +500,7 @@ uvlong rxput(int tree, uvlong key, uvlong ref, int (*cmp)(uvlong key, uvlong che
 	}
 	rxplan plan = {0};
 	if (!prepare_insert_plan(l, &plan)) return RXNONE;
-	uvlong ent = t->nent;
+	uvlong ent    = t->nent;
 	t->ents [ent] = (rxentry) {.key = key, .ref = ref, .live = true};
 	t->nent++;
 	t->nlent++;
@@ -513,9 +517,9 @@ bool rxdel(int tree, uvlong ent) {
 	rxentry *e = &t->ents [ent];
 	rxnode  *l = e->leaf;
 	uvlong   s = e->slot;
-	e->live = false;
-	e->leaf = null;
-	e->slot = 0;
+	e->live    = false;
+	e->leaf    = null;
+	e->slot    = 0;
 	t->nlent--;
 	remove_entry_at(t, l, s);
 	return true;
@@ -697,8 +701,8 @@ bool rxprev(int tree, uvlong ent, uvlong *prev) {
 	return true;
 }
 
-uvlong rxrange(int tree, uvlong lo, uvlong hi, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg,
-               uvlong *buf, uvlong cap) {
+uvlong rxrange(int tree, uvlong lo, uvlong hi, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg, uvlong *buf,
+               uvlong cap) {
 	rxtree *t = rx_get(tree);
 	if (!t || !cmp || badbuf(buf, cap)) {
 		errmsg("rxrange: bad argument");
