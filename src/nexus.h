@@ -354,6 +354,43 @@ uvlong rxrange(int tree, uvlong lo, uvlong hi, int (*cmp)(uvlong key, uvlong che
                uvlong *buf, uvlong cap);
 
 /* ═══════════════════════════════════════════════════════
+   Amtrie — array-mapped trie topology descriptors.
+   An amtrie owns bitmap branch and bucket shape only.  Callers provide a
+   uvlong hash for shape routing and caller-owned uvlong key/ref handles for
+   entries.  Nexus never hashes bytes or interprets keys.
+
+   Routing consumes fixed 6-bit low-to-high hash fragments: level 0 uses bits
+   0..5, level 1 uses bits 6..11, and so on.  Hash collisions and duplicate
+   keys live together in leaf buckets.  amput always creates a new entry.
+
+   Public entry ids are opaque, stable, and not reused within a live descriptor.
+   Deleted ids are errors for entry APIs.  amfind returns the first matching
+   live entry in a hash bucket and exact miss is a quiet false result.
+   ammatches enumerates all live entries with matching hash and comparator-equal
+   key.  amdels deletes all such entries and returns the deleted count.
+
+   amentries, ammatches, and amprefix use the count/cap/null-buffer convention.
+   amprefix enumerates entries whose low nbits of hash equal prefix; nbits==0
+   enumerates all entries.  Enumeration order is not a contract.
+   ═══════════════════════════════════════════════════════ */
+
+int    mkamtrie(int arena);
+void   rmamtrie(int trie);
+uvlong amput(int trie, uvlong hash, uvlong key, uvlong ref);
+bool   amdel(int trie, uvlong ent);
+uvlong amdels(int trie, uvlong hash, uvlong chet, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg);
+uvlong amhash(int trie, uvlong ent);
+uvlong amkey(int trie, uvlong ent);
+uvlong amref(int trie, uvlong ent);
+void   ramref(int trie, uvlong ent, uvlong ref);
+uvlong amnentry(int trie);
+uvlong amentries(int trie, uvlong *buf, uvlong cap);
+bool   amfind(int trie, uvlong hash, uvlong chet, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg, uvlong *ent);
+uvlong ammatches(int trie, uvlong hash, uvlong chet, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg,
+                 uvlong *buf, uvlong cap);
+uvlong amprefix(int trie, uvlong prefix, uint nbits, uvlong *buf, uvlong cap);
+
+/* ═══════════════════════════════════════════════════════
    Skiplist — ordered randomized skiplist topology descriptors.
    A skiplist owns shape only.  Pins are ordered elements with caller-owned
    uvlong yods.  Ordering is supplied per operation by a comparator over yod
