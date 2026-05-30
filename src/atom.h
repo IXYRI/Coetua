@@ -407,3 +407,29 @@ static u128 inline u128_add(u128 a, u128 b) {
 	uvlong lo = a.lo + b.lo;
 	return ( u128 ) {lo, a.hi + b.hi + (lo < a.lo)};
 }
+
+static u128 inline u128_shl(u128 x, int n) {
+	if (n <= 0) return x;
+	if (n >= 128) return ( u128 ) {0, 0};
+#if (defined(COETUA_ATOM_CLANG) || defined(COETUA_ATOM_GNU)) && defined(__SIZEOF_INT128__)
+	__uint128_t v = ((__uint128_t) x.hi << 64) | x.lo;
+	v <<= n;
+	return ( u128 ) {( uvlong ) v, ( uvlong ) (v >> 64)};
+#else
+	if (n >= 64) return ( u128 ) {0, x.lo << (n - 64)};
+	return ( u128 ) {x.lo << n, (x.hi << n) | (x.lo >> (64 - n))};
+#endif
+}
+
+static u128 inline u128_shr(u128 x, int n) {
+	if (n <= 0) return x;
+	if (n >= 128) return ( u128 ) {0, 0};
+#if (defined(COETUA_ATOM_CLANG) || defined(COETUA_ATOM_GNU)) && defined(__SIZEOF_INT128__)
+	__uint128_t v = ((__uint128_t) x.hi << 64) | x.lo;
+	v >>= n;
+	return ( u128 ) {( uvlong ) v, ( uvlong ) (v >> 64)};
+#else
+	if (n >= 64) return ( u128 ) {x.hi >> (n - 64), 0};
+	return ( u128 ) {(x.lo >> n) | (x.hi << (64 - n)), x.hi >> n};
+#endif
+}

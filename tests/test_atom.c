@@ -53,6 +53,12 @@ int main(void) {
 	CHECK(p.lo == 0x2236d88fe5618cf0ull && p.hi == 0x0121fa00ad77d742ull, "wmul64 matches known mixed product");
 	u128 s = u128_add(u128_make(( uvlong ) -1, 0), u128_make(1, 0));
 	CHECK(s.lo == 0 && s.hi == 1, "u128_add carries");
+	s = u128_shl(u128_make(1, 0), 65);
+	CHECK(s.lo == 0 && s.hi == 2, "u128_shl crosses word boundary");
+	s = u128_shr(u128_make(0, 4), 65);
+	CHECK(s.lo == 2 && s.hi == 0, "u128_shr crosses word boundary");
+	s = u128_shl(u128_make(7, 9), 128);
+	CHECK(s.lo == 0 && s.hi == 0, "u128_shl saturates full width");
 
 	printf("\n=== result: %d failures ===\n", failures);
 	return failures;

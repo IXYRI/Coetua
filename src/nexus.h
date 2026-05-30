@@ -433,6 +433,85 @@ uvlong spboxmove(int plane, double xmin, double xmax, double ymin, double ymax, 
 uvlong spcircmove(int plane, double x, double y, double r, double dx, double dy);
 
 /* ═══════════════════════════════════════════════════════
+   Space — sparse geometric 3D topology descriptors.
+   A space owns spatial index shape only.  Points live at double coordinates
+   and store one caller-owned uvlong phi.  Public point ids are opaque, stable,
+   and not reused within a live descriptor.
+
+   mkspace() takes a positive finite block side length used for internal
+   spatial clustering.  Coordinates may be finite or ±Inf, but NaN is invalid.
+   Exact coordinate matching canonicalizes -0.0 to +0.0.  scput always creates
+   a point.  scat returns the unique point at an exact coordinate; missing or
+   duplicate points at that coordinate are errors.
+
+   scbox uses inclusive bounds and may use ±Inf bounds.  scsphr and scnear use
+   finite query coordinates; points with infinite coordinates are excluded from
+   sphere and nearest queries.  scnear writes the nearest point and optionally
+   the second nearest point; requesting a second point when only one exists is
+   an error after writing the first.
+
+   scpts, scbox, and scsphr use SOA output.  ids/xs/ys/zs/phis are
+   independently optional, but cap > 0 requires at least one output buffer.
+   The return value is the full match count and at most cap rows are written to
+   each non-null buffer.  scmov, scboxmove, and scsphrmove preserve point ids
+   and phis.
+   ═══════════════════════════════════════════════════════ */
+
+int    mkspace(int arena, double block);
+void   rmspace(int space);
+uvlong scput(int space, double x, double y, double z, uvlong phi);
+bool   scdel(int space, uvlong pt);
+uvlong scphi(int space, uvlong pt);
+void   rscphi(int space, uvlong pt, uvlong phi);
+void   scloctn(int space, uvlong pt, double *x, double *y, double *z);
+bool   scmov(int space, uvlong pt, double x, double y, double z);
+uvlong scat(int space, double x, double y, double z);
+uvlong scnpt(int space);
+uvlong scpts(int space, uvlong *ids, double *xs, double *ys, double *zs, uvlong *phis, uvlong cap);
+uvlong scbox(int space, double xmin, double xmax, double ymin, double ymax, double zmin, double zmax,
+             uvlong *ids, double *xs, double *ys, double *zs, uvlong *phis, uvlong cap);
+uvlong scsphr(int space, double x, double y, double z, double r, uvlong *ids, double *xs, double *ys, double *zs,
+              uvlong *phis, uvlong cap);
+uvlong scnear(int space, double x, double y, double z, uvlong *first, uvlong *second);
+uvlong scboxmove(int space, double xmin, double xmax, double ymin, double ymax, double zmin, double zmax, double dx,
+                 double dy, double dz);
+uvlong scsphrmove(int space, double x, double y, double z, double r, double dx, double dy, double dz);
+
+/* ═══════════════════════════════════════════════════════
+   Segheap — dynamic Leonardo heap forest topology descriptors.
+   A segheap owns heap/forest shape only.  Items are dense slots containing
+   caller-owned uvlong key/ref pairs.  There are no public item handles,
+   tombstones, range APIs, or key ownership.
+
+   mksegheap() creates a max-heap when order is false and a min-heap when order
+   is true.  Comparators must remain consistent for a heap's mutation sequence;
+   sgtop() reads the current root without taking a comparator.
+
+   sgput inserts one item.  sgputs batch-inserts key/ref pairs.  sgtop and
+   sgpop return false quietly on empty heaps and use optional key/ref outputs.
+   sgfind returns any equal item and exact miss is quiet false.  sgdel deletes
+   any one equal item.  sgdels deletes at most n equal items and returns the
+   deleted count.
+
+   sgitems uses SOA output.  keys and refs are independently optional, but
+   cap > 0 requires at least one output buffer.  Enumeration order is not a
+   contract.
+   ═══════════════════════════════════════════════════════ */
+
+int    mksegheap(int arena, bool order);
+void   rmsegheap(int heap);
+void   sgput(int heap, uvlong key, uvlong ref, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg);
+void   sgputs(int heap, uvlong *keys, uvlong *refs, uvlong n, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg);
+bool   sgtop(int heap, uvlong *key, uvlong *ref);
+bool   sgpop(int heap, uvlong *key, uvlong *ref, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg);
+bool   sgfind(int heap, uvlong chet, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg, uvlong *key,
+              uvlong *ref);
+bool   sgdel(int heap, uvlong chet, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg);
+uvlong sgdels(int heap, uvlong chet, uvlong n, int (*cmp)(uvlong key, uvlong chet, void *arg), void *arg);
+uvlong sgnitem(int heap);
+uvlong sgitems(int heap, uvlong *keys, uvlong *refs, uvlong cap);
+
+/* ═══════════════════════════════════════════════════════
    Skiplist — ordered randomized skiplist topology descriptors.
    A skiplist owns shape only.  Pins are ordered elements with caller-owned
    uvlong yods.  Ordering is supplied per operation by a comparator over yod
